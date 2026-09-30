@@ -11,27 +11,36 @@
 <title>수도검침표</title>
 <style>
   :root {
-    --bg: #f4f6f9; --card: #fff; --line: #d0d7e2; --text: #1d2433; --muted: #6b7486;
-    --primary: #1565c0; --primary-weak: #e3efff; --ok: #2e7d32; --ok-weak: #e8f5e9; --warn: #f9a825; --danger: #c62828;
+    --bg: #f4f6f9; --card: #fff; --line: #d0d7e2; --grid: #e6eaf0; --text: #1d2433; --muted: #6b7486;
+    --primary: #1565c0; --primary-weak: #e3efff; --ok: #2e7d32; --ok-weak: #e8f5e9; --warn: #b26a00; --warn-weak: #fff4e0;
+    --danger: #c62828; --danger-weak: #fdecea;
   }
   @media (prefers-color-scheme: dark) {
     :root:not([data-theme="light"]) {
-      --bg: #11151c; --card: #1b212b; --line: #333c4b; --text: #e8ecf3; --muted: #9aa3b5;
-      --primary: #64a8ff; --primary-weak: #1d2f4a; --ok: #66bb6a; --ok-weak: #1e3322;
+      --bg: #11151c; --card: #1b212b; --line: #333c4b; --grid: #283040; --text: #e8ecf3; --muted: #9aa3b5;
+      --primary: #64a8ff; --primary-weak: #1d2f4a; --ok: #66bb6a; --ok-weak: #1e3322; --warn: #ffb74d; --warn-weak: #3a2c14;
+      --danger: #ef5350; --danger-weak: #3a1a1a;
     }
   }
   * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
   html, body { margin: 0; background: var(--bg); color: var(--text);
     font-family: -apple-system, "Apple SD Gothic Neo", "Malgun Gothic", "Noto Sans KR", sans-serif; }
-  body { padding: 0 0 110px; }
-  header { position: sticky; top: 0; z-index: 10; background: var(--primary); color: #fff;
-    padding: 10px 16px; padding-top: max(10px, env(safe-area-inset-top)); display: flex; align-items: center; gap: 8px; }
+  body { padding-bottom: 170px; }
+  body.ana { padding-bottom: 24px; }
+  header { position: sticky; top: 0; z-index: 10; background: #1565c0; color: #fff;
+    padding: 8px 16px 0; padding-top: max(8px, env(safe-area-inset-top)); }
+  header .bar { display: flex; align-items: center; gap: 8px; }
   header h1 { font-size: 18px; margin: 0; flex: 1; }
+  .tabs { display: flex; gap: 4px; margin-top: 6px; }
+  .tabs button { flex: 1; border: 0; background: none; color: rgba(255,255,255,.75); font-size: 15px; font-weight: 700;
+    padding: 10px 0; border-bottom: 3px solid transparent; cursor: pointer; }
+  .tabs button.on { color: #fff; border-bottom-color: #fff; }
   .icon-btn { border: 0; border-radius: 10px; background: rgba(255,255,255,.18); color: #fff;
     font-size: 20px; width: 44px; height: 44px; cursor: pointer; }
   .icon-btn.on { background: #ffd54f; color: #333; box-shadow: 0 0 16px #ffd54f; }
   main { padding: 12px 16px; max-width: 900px; margin: 0 auto; }
   .card { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 12px; margin-bottom: 12px; }
+  .card h2 { font-size: 15px; margin: 0 0 10px; }
   .row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
   .row label { font-size: 13px; color: var(--muted); }
   input[type=text], input[type=search], input[type=month], input[type=number], input[inputmode] {
@@ -39,7 +48,9 @@
     background: var(--card); color: var(--text); min-width: 0; }
   #villaSel { flex: 1; min-width: 0; font-size: 17px; font-weight: 700; padding: 8px 10px; border: 1px solid var(--line);
     border-radius: 8px; background: var(--card); color: var(--text); }
-  .btn.kakao { background: #fee500; color: #191919; }
+  .seg { display: flex; border: 1px solid var(--line); border-radius: 10px; overflow: hidden; }
+  .seg button { flex: 1; border: 0; padding: 8px 12px; font-size: 14px; font-weight: 700; background: var(--card); color: var(--muted); cursor: pointer; }
+  .seg button.on { background: var(--primary); color: #fff; }
   #search { width: 100%; }
   #results { max-height: 45vh; overflow-y: auto; margin-top: 6px; }
   #results .hint { padding: 4px 2px; }
@@ -48,27 +59,86 @@
   .hit b { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .hit em { font-style: normal; font-weight: 700; color: var(--ok); min-width: 60px; text-align: right; }
   .hit em.miss { color: var(--danger); font-weight: 400; }
-  body { padding-bottom: 160px; }
+  .hit small { color: var(--muted); min-width: 64px; text-align: right; }
+  /* 입력 표 */
   .grid { display: grid; gap: 8px; }
   .col h3 { margin: 0 0 6px; font-size: 14px; color: var(--muted); text-align: center; }
-  .cell { display: flex; align-items: center; gap: 6px; padding: 4px; border-radius: 8px; border: 2px solid transparent; }
+  .cell { display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: center; column-gap: 4px; row-gap: 2px; padding: 4px;
+    border-radius: 8px; border: 2px solid transparent; }
   .cell.sel { border-color: var(--primary); background: var(--primary-weak); }
   .cell.flash { animation: flash 1s; }
   @keyframes flash { 0% { background: #c8e6c9; } 100% { background: transparent; } }
-  .cell span { font-size: 13px; width: 38px; flex: none; font-weight: 600; }
-  .cell input { width: 100%; text-align: right; padding: 6px; }
+  .cell span { font-size: 13px; font-weight: 600; }
+  .cell input { width: 100%; text-align: right; padding: 6px; grid-column: 1 / -1; grid-row: 2; font-size: 17px; font-variant-numeric: tabular-nums; }
   .cell input.filled { background: var(--ok-weak); border-color: var(--ok); }
+  .cell .sub { grid-column: 2; grid-row: 1; font-size: 11px; color: var(--muted); text-align: right; min-height: 14px;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .cell .sub b { color: var(--text); }
+  .cell .sub .bad { color: var(--danger); font-weight: 700; }
   .bottom { position: fixed; left: 0; right: 0; bottom: 0; z-index: 10; background: var(--card);
     border-top: 1px solid var(--line); padding: 10px 16px; padding-bottom: max(10px, env(safe-area-inset-bottom)); }
+  body.ana .bottom, body.ana #inputView, body:not(.ana) #anaView { display: none; }
   .bottom .row { justify-content: center; max-width: 900px; margin: 0 auto; flex-wrap: nowrap; }
   .btn { border: 0; border-radius: 12px; padding: 12px 14px; font-size: 15px; font-weight: 700; cursor: pointer;
     background: var(--primary-weak); color: var(--primary); flex: 1; white-space: nowrap; }
   .btn.primary { background: var(--primary); color: #fff; }
+  .btn.kakao { background: #fee500; color: #191919; }
   .btn.rec { background: var(--danger); color: #fff; animation: pulse 1.2s infinite; }
   @keyframes pulse { 50% { opacity: .7; } }
   .btn.small { flex: none; padding: 8px 12px; font-size: 13px; }
   #status { font-size: 14px; min-height: 20px; text-align: center; color: var(--muted); margin-bottom: 6px; word-break: keep-all; }
   #status b { color: var(--text); }
+  .hint { font-size: 12px; color: var(--muted); line-height: 1.6; }
+  details summary { cursor: pointer; font-weight: 700; font-size: 14px; }
+  /* 분석 */
+  .tiles { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+  @media (min-width: 640px) { .tiles { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
+  .tile { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 12px; }
+  .tile .k { font-size: 12px; color: var(--muted); }
+  .tile .v { font-size: 24px; font-weight: 800; margin-top: 4px; font-variant-numeric: tabular-nums; }
+  .tile .v small { font-size: 13px; font-weight: 600; color: var(--muted); margin-left: 2px; }
+  .tile .d { font-size: 12px; margin-top: 2px; color: var(--muted); }
+  .up { color: var(--danger); } .down { color: var(--ok); }
+  .flags { display: flex; flex-direction: column; gap: 6px; }
+  .flag { display: flex; gap: 8px; align-items: center; padding: 8px 10px; border-radius: 8px; font-size: 14px; cursor: pointer; border: 0; text-align: left; color: var(--text); width: 100%; }
+  .flag.critical { background: var(--danger-weak); } .flag.warning { background: var(--warn-weak); }
+  .flag b { white-space: nowrap; }
+  .flag .tag { font-size: 12px; font-weight: 700; white-space: nowrap; }
+  .flag.critical .tag { color: var(--danger); } .flag.warning .tag { color: var(--warn); }
+  .hbar { display: grid; grid-template-columns: 56px minmax(0, 1fr) 76px; align-items: center; gap: 8px;
+    padding: 5px 2px; cursor: pointer; border-radius: 6px; font-size: 13px; }
+  .hbar:hover { background: var(--primary-weak); }
+  .hbar .lab { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .hbar .track { height: 14px; position: relative; border-left: 1px solid var(--line); }
+  .hbar .fill { height: 100%; background: var(--primary); border-radius: 0 4px 4px 0; min-width: 2px; }
+  .hbar .fill.critical { background: var(--danger); } .hbar .fill.warning { background: var(--warn); }
+  .hbar .val { text-align: right; font-variant-numeric: tabular-nums; }
+  .hbar .val.none { color: var(--muted); }
+  .chart svg { display: block; width: 100%; overflow: visible; }
+  .chart text { fill: var(--muted); font-size: 11px; }
+  .chart .gl { stroke: var(--grid); stroke-width: 1; }
+  .chart .base { stroke: var(--line); stroke-width: 1; }
+  .chart .bar { fill: var(--primary); }
+  .chart .bar.cur { fill: var(--primary); } .chart .bar.old { fill: var(--primary); opacity: .45; }
+  .chart .lbl { fill: var(--text); font-weight: 700; font-size: 12px; }
+  .chart .hit { fill: transparent; cursor: pointer; }
+  .chart .hit:hover + .bar, .chart .hit.on + .bar { opacity: 1; filter: brightness(1.15); }
+  .tbl-wrap { overflow-x: auto; }
+  table.ana { width: 100%; border-collapse: collapse; font-size: 13px; font-variant-numeric: tabular-nums; }
+  table.ana th, table.ana td { padding: 6px 4px; border-bottom: 1px solid var(--line); text-align: right; white-space: nowrap; }
+  table.ana th { color: var(--muted); font-weight: 600; font-size: 12px; cursor: pointer; user-select: none; }
+  table.ana th:first-child, table.ana td:first-child { text-align: left; }
+  table.ana td input { width: 62px; padding: 4px 5px; font-size: 13px; text-align: right; }
+  table.ana tr.critical td:first-child { color: var(--danger); } table.ana tr.warning td:first-child { color: var(--warn); }
+  table.ana td.link { font-weight: 700; cursor: pointer; text-decoration: underline dotted; }
+  #tip { position: fixed; z-index: 100; pointer-events: none; display: none; background: var(--text); color: var(--bg);
+    font-size: 12px; padding: 6px 8px; border-radius: 6px; line-height: 1.5; white-space: nowrap; }
+  .modal { position: fixed; inset: 0; z-index: 60; background: rgba(0,0,0,.5); display: none; overflow-y: auto; padding: 16px; }
+  .modal.open { display: block; }
+  .modal .card { max-width: 640px; margin: 8vh auto 0; }
+  .modal .head { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
+  .modal .head h2 { flex: 1; margin: 0; font-size: 18px; }
+  .x { border: 0; background: var(--primary-weak); color: var(--primary); width: 36px; height: 36px; border-radius: 10px; font-size: 18px; cursor: pointer; }
   /* 카메라 */
   #cam { position: fixed; inset: 0; background: #000; z-index: 50; display: none; flex-direction: column; }
   #cam.open { display: flex; }
@@ -82,70 +152,106 @@
   #cam .top .target { flex: 1; font-size: 20px; font-weight: 800; }
   #cam .ctrl { background: #111; padding-bottom: max(12px, env(safe-area-inset-bottom)); }
   #camMsg { color: #fff; text-align: center; font-size: 16px; padding: 6px 16px; background: #111; min-height: 30px; }
-  .hint { font-size: 12px; color: var(--muted); line-height: 1.6; }
-  details summary { cursor: pointer; font-weight: 700; font-size: 14px; }
 </style>
 </head>
 <body>
 <header>
-  <h1>💧 수도검침표</h1>
-  <button class="icon-btn" id="torchBtn" title="손전등">🔦</button>
+  <div class="bar">
+    <h1>💧 수도검침표</h1>
+    <button class="icon-btn" id="torchBtn" title="손전등">🔦</button>
+  </div>
+  <nav class="tabs">
+    <button id="tabInput" class="on">📝 검침 입력</button>
+    <button id="tabAna">📊 사용량 분석</button>
+  </nav>
 </header>
 
 <main>
   <div class="card">
     <div class="row">
       <select id="villaSel"></select>
-      <input type="month" id="month">
+      <input type="month" id="month" title="검침월">
     </div>
     <div class="row" style="margin-top:8px">
       <button class="btn small" id="villaAdd">➕ 빌라 추가</button>
       <button class="btn small" id="villaRename">✏️ 이름 변경</button>
       <button class="btn small" id="villaDel">🗑 빌라 삭제</button>
-      <span class="hint" id="villaProgress" style="margin-left:auto"></span>
     </div>
   </div>
 
-  <div class="card">
-    <input type="search" id="search" placeholder="🔍 통합검색: 빌라명·호수·검침값·미입력" enterkeyhint="search">
-    <div id="results"></div>
-  </div>
-
-  <div class="card"><div class="grid" id="grid"></div></div>
-
-  <div class="card">
-    <div class="row">
-      <button class="btn small kakao" id="kakaoBtn">💬 카톡 보내기</button>
-      <button class="btn small" id="exportBtn">📥 엑셀(CSV) 저장</button>
-      <button class="btn small" id="shareBtn">📤 공유</button>
-      <button class="btn small" id="clearBtn">🗑 값 지우기</button>
-    </div>
-  </div>
-
-  <div class="card">
-    <details>
-      <summary>⚙️ 호수 설정</summary>
-      <div class="row" style="margin-top:10px">
-        <label>시작층 <input type="number" id="fFrom" min="1" max="99" style="width:60px"></label>
-        <label>끝층 <input type="number" id="fTo" min="1" max="99" style="width:60px"></label>
-        <label>층당 세대 <input type="number" id="perFloor" min="1" max="20" style="width:60px"></label>
-        <button class="btn small primary" id="applyLayout">적용</button>
+  <!-- ============ 검침 입력 ============ -->
+  <div id="inputView">
+    <div class="card">
+      <div class="row">
+        <span style="font-size:13px;color:var(--muted)">입력할 값</span>
+        <div class="seg" style="flex:1">
+          <button id="entryCur" class="on">당월지침</button>
+          <button id="entryPrev">전월지침</button>
+        </div>
       </div>
-      <label class="row" style="margin-top:10px"><input type="checkbox" id="ttsOn" checked> 입력하면 음성으로 확인해주기</label>
-      <label class="row" style="margin-top:6px"><input type="checkbox" id="autoListen"> 🎤 말한 뒤 자동으로 계속 듣기 (손 안 쓰고 연속 입력)</label>
-    </details>
+      <div class="hint" id="entryHint" style="margin-top:6px"></div>
+    </div>
+
+    <div class="card">
+      <input type="search" id="search" placeholder="🔍 통합검색: 빌라명·호수·검침값·미입력" enterkeyhint="search">
+      <div id="results"></div>
+    </div>
+
+    <div class="card"><div class="grid" id="grid"></div></div>
+
+    <div class="card">
+      <div class="row">
+        <button class="btn small kakao" id="kakaoBtn">💬 카톡 보내기</button>
+        <button class="btn small" id="exportBtn">📥 엑셀(CSV) 저장</button>
+        <button class="btn small" id="shareBtn">📤 공유</button>
+        <button class="btn small" id="clearBtn">🗑 이 달 값 지우기</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <details>
+        <summary>⚙️ 호수 설정</summary>
+        <div class="row" style="margin-top:10px">
+          <label>시작층 <input type="number" id="fFrom" min="1" max="99" style="width:60px"></label>
+          <label>끝층 <input type="number" id="fTo" min="1" max="99" style="width:60px"></label>
+          <label>층당 세대 <input type="number" id="perFloor" min="1" max="20" style="width:60px"></label>
+          <button class="btn small primary" id="applyLayout">적용</button>
+        </div>
+        <label class="row" style="margin-top:10px"><input type="checkbox" id="ttsOn" checked> 입력하면 음성으로 확인해주기</label>
+        <label class="row" style="margin-top:6px"><input type="checkbox" id="autoListen"> 🎤 말한 뒤 자동으로 계속 듣기 (손 안 쓰고 연속 입력)</label>
+      </details>
+    </div>
+
+    <div class="card hint">
+      <b>사용법</b><br>
+      🎤 <b>음성</b>: 버튼을 누르고 "201호 1234" 처럼 한 번 말하세요. 말이 끝나면 자동으로 입력됩니다.<br>
+      &nbsp;&nbsp;&nbsp;호수 없이 숫자만 말하면 <b>선택된 칸</b>에 들어가고 다음 칸으로 넘어갑니다.<br>
+      ⌨️ <b>키보드 음성</b>: 🎤 인식이 안 좋으면 아래 입력창을 누르고 <b>키보드의 🎤(구글 음성)</b>로 말하세요.<br>
+      📅 <b>전월지침</b>: 처음 쓸 때는 위에서 <b>[전월지침]</b>을 눌러 지난달 값을 넣으면 사용량이 계산됩니다. 다음 달부터는 자동입니다.<br>
+      📊 <b>사용량 분석</b>: 위 탭에서 세대별 사용량·그래프·이상 세대를 확인하세요.<br>
+      🔍 <b>통합검색</b>: 모든 빌라에서 찾습니다. 예) "201", "행복 미입력", "1234"<br>
+      📷 <b>카메라</b>: 계량기를 비추고 손전등을 켠 뒤 숫자를 말하거나, 📸 촬영하면 숫자를 자동으로 읽습니다.<br>
+      🔦 <b>손전등</b>: 오른쪽 위 버튼 (안드로이드 크롬 지원)<br>
+      💬 <b>카톡 보내기</b>: 공유창에서 <b>카카오톡</b>을 고르고 보낼 대화방을 선택하세요.
+    </div>
   </div>
 
-  <div class="card hint">
-    <b>사용법</b><br>
-    🎤 <b>음성</b>: 버튼을 누르고 "201호 1234" 처럼 한 번 말하세요. 말이 끝나면 자동으로 입력됩니다.<br>
-    ⌨️ <b>키보드 음성</b>: 🎤 인식이 안 좋으면 아래 입력창을 누르고 <b>키보드의 🎤(구글 음성)</b>로 말하세요.<br>
-    🔍 <b>통합검색</b>: 모든 빌라에서 찾습니다. 예) "201", "행복 미입력", "1234"<br>
-    &nbsp;&nbsp;&nbsp;호수 없이 숫자만 말하면 <b>선택된 칸</b>에 들어가고 다음 칸으로 넘어갑니다.<br>
-    📷 <b>카메라</b>: 계량기를 비추고 손전등을 켠 뒤 숫자를 말하거나, 📸 촬영하면 숫자를 자동으로 읽습니다.<br>
-    🔦 <b>손전등</b>: 오른쪽 위 버튼 (안드로이드 크롬 지원)<br>
-    🏠 <b>빌라 추가</b>: 빌라마다 따로 표가 저장됩니다. 위 목록에서 골라 바꾸세요.<br>
-    💬 <b>카톡 보내기</b>: 공유창에서 <b>카카오톡</b>을 고르고 보낼 대화방을 선택하세요.
+  <!-- ============ 사용량 분석 ============ -->
+  <div id="anaView">
+    <div class="tiles" id="tiles" style="margin-bottom:12px"></div>
+    <div class="card" id="flagCard"><h2>🔎 확인이 필요한 세대</h2><div class="flags" id="flags"></div></div>
+    <div class="card"><h2 id="unitChartTitle">세대별 사용량</h2><div id="unitBars"></div>
+      <div class="hint" style="margin-top:6px">세대를 누르면 월별 사용 내역이 나옵니다.</div></div>
+    <div class="card"><h2>월별 총 사용량</h2><div class="chart" id="monthChart"></div></div>
+    <div class="card" id="villaCmpCard"><h2 id="villaCmpTitle">빌라별 총 사용량</h2><div id="villaBars"></div></div>
+    <div class="card">
+      <h2>세대별 상세표 <span class="hint">(지침을 바로 고칠 수 있습니다 · 제목을 누르면 정렬)</span></h2>
+      <div class="tbl-wrap"><table class="ana" id="anaTable"></table></div>
+    </div>
+    <div class="card"><div class="row">
+      <button class="btn small" id="exportBtn2">📥 분석표 엑셀(CSV) 저장</button>
+      <button class="btn small kakao" id="kakaoBtn2">💬 사용량 카톡 보내기</button>
+    </div></div>
   </div>
 </main>
 
@@ -160,6 +266,17 @@
     <button class="btn" id="camBtn">📷 카메라</button>
   </div>
 </div>
+
+<!-- 세대 상세 -->
+<div class="modal" id="unitModal">
+  <div class="card">
+    <div class="head"><h2 id="umTitle"></h2><button class="x" id="umClose">✕</button></div>
+    <div class="tiles" id="umTiles" style="margin-bottom:12px"></div>
+    <div class="chart" id="umChart"></div>
+    <div class="tbl-wrap" style="margin-top:10px"><table class="ana" id="umTable"></table></div>
+  </div>
+</div>
+<div id="tip"></div>
 
 <!-- 카메라 화면 -->
 <div id="cam">
@@ -186,33 +303,69 @@
 (() => {
   const $ = id => document.getElementById(id);
   const KEY = 'waterMeter.v2';
+  const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 
-  // ---------- 저장 (빌라 여러 개) ----------
-  const thisMonth = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`; };
-  const newVilla = (name, from) => ({ villa: name, month: thisMonth(),
-    fFrom: from ? from.fFrom : 2, fTo: from ? from.fTo : 4, perFloor: from ? from.perFloor : 9, values: {} });
+  // ---------- 월 계산 ----------
+  const ym = d => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+  const thisMonth = () => ym(new Date());
+  const addMonth = (m, n) => { const [y, mo] = m.split('-').map(Number); return ym(new Date(y, mo - 1 + n, 1)); };
+  const mLabel = m => `${+m.slice(5)}월`;
+  const mLong = m => `${m.slice(0, 4)}년 ${+m.slice(5)}월`;
+
+  // ---------- 저장 (빌라 여러 개 · 월별 지침) ----------
+  // villa = { villa: 이름, fFrom, fTo, perFloor, readings: { 'YYYY-MM': { '201': '1234', ... } } }
+  const newVilla = (name, from) => ({ villa: name,
+    fFrom: from ? from.fFrom : 2, fTo: from ? from.fTo : 4, perFloor: from ? from.perFloor : 9, readings: {} });
   function load(k) { try { return JSON.parse(localStorage.getItem(k)); } catch (e) { return null; } }
   function save() { try { localStorage.setItem(KEY, JSON.stringify(state)); } catch (e) {} }
   let state = load(KEY);
   if (!state || !Array.isArray(state.villas) || !state.villas.length) {
-    const old = load('waterMeter.v1'); // 이전 버전 데이터 옮기기
+    const old = load('waterMeter.v1');
     state = { cur: 0, tts: old ? old.tts : true,
-      villas: [old ? { ...newVilla(''), ...old, villa: old.villa || '빌라 1' } : newVilla('빌라 1')] };
-    delete state.villas[0].tts;
-    save();
+      villas: [old ? { ...old, villa: old.villa || '빌라 1' } : newVilla('빌라 1')] };
   }
   if (!state.villas[state.cur]) state.cur = 0;
+  state.month = state.month || state.villas[state.cur].month || thisMonth();
+  state.villas.forEach(v => { // 이전 버전(월 구분 없음) → 월별 구조로 옮기기
+    v.readings = v.readings || {};
+    if (v.values) {
+      const m = v.month || state.month;
+      if (Object.keys(v.values).length) v.readings[m] = { ...v.values, ...(v.readings[m] || {}) };
+      delete v.values;
+    }
+    delete v.month; delete v.tts;
+  });
+  state.entryPrev = false; state.tab = state.tab || 'input';
+  save();
   let V = state.villas[state.cur];
 
+  const RD = (v, m) => v.readings[m] || {};
+  const entryMonth = () => state.entryPrev ? addMonth(state.month, -1) : state.month;
+  const num = s => { if (s === undefined || s === null || s === '') return null; const n = Number(s); return isNaN(n) ? null : n; };
+  const r2 = x => Math.round(x * 100) / 100;
+  const fmt = x => x == null ? '-' : x.toLocaleString('ko-KR', { maximumFractionDigits: 2 });
+  function unitsOf(v) { const l = []; for (let f = v.fFrom; f <= v.fTo; f++) for (let u = 1; u <= v.perFloor; u++) l.push(String(f * 100 + u)); return l; }
+  const units = () => unitsOf(V);
+  // 사용량 = 당월지침 - 전월지침
+  function usage(v, no, m) {
+    const c = num(RD(v, m)[no]), p = num(RD(v, addMonth(m, -1))[no]);
+    return c == null || p == null ? null : r2(c - p);
+  }
+  function villaTotal(v, m) {
+    let total = 0, n = 0;
+    unitsOf(v).forEach(no => { const u = usage(v, no, m); if (u != null && u >= 0) { total += u; n++; } });
+    return { total: r2(total), n };
+  }
+
+  // ---------- 빌라 ----------
   function renderVillas() {
     $('villaSel').innerHTML = state.villas.map((v, i) => {
-      const n = Object.keys(v.values).length, total = (v.fTo - v.fFrom + 1) * v.perFloor;
+      const n = Object.keys(RD(v, state.month)).length, total = unitsOf(v).length;
       return `<option value="${i}">${esc(v.villa || '(이름 없음)')}  (${n}/${total})</option>`;
     }).join('');
     $('villaSel').value = state.cur;
     $('villaDel').disabled = state.villas.length < 2;
   }
-  const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
   function switchVilla(i) {
     state.cur = i; V = state.villas[i]; selected = null; save(); render();
     status(`🏠 <b>${esc(V.villa)}</b>`); speak(V.villa);
@@ -224,41 +377,55 @@
   };
   $('villaRename').onclick = () => {
     const name = (prompt('빌라 이름', V.villa) || '').trim(); if (!name) return;
-    V.villa = name; save(); renderVillas();
+    V.villa = name; save(); render();
   };
   $('villaDel').onclick = () => {
     if (state.villas.length < 2) return;
-    if (!confirm(`"${V.villa}" 빌라와 검침값을 삭제할까요?`)) return;
+    if (!confirm(`"${V.villa}" 빌라와 모든 검침값을 삭제할까요?`)) return;
     state.villas.splice(state.cur, 1); switchVilla(Math.max(0, state.cur - 1));
   };
 
-  const units = () => {
-    const list = [];
-    for (let f = V.fFrom; f <= V.fTo; f++)
-      for (let u = 1; u <= V.perFloor; u++) list.push(String(f * 100 + u));
-    return list;
-  };
-  let selected = null;
+  // ---------- 탭 ----------
+  function setTab(t) {
+    state.tab = t; save();
+    document.body.classList.toggle('ana', t === 'ana');
+    $('tabInput').classList.toggle('on', t === 'input'); $('tabAna').classList.toggle('on', t === 'ana');
+    if (t === 'ana') { if (listening) stopListen(); renderAnalysis(); }
+    window.scrollTo(0, 0);
+  }
+  $('tabInput').onclick = () => setTab('input');
+  $('tabAna').onclick = () => setTab('ana');
 
-  // ---------- 표 그리기 ----------
+  // ---------- 입력 표 ----------
+  let selected = null;
+  function subText(no) {
+    if (state.entryPrev) { const c = RD(V, state.month)[no]; return c ? `당월 <b>${esc(c)}</b>` : ''; }
+    const p = RD(V, addMonth(state.month, -1))[no], u = usage(V, no, state.month);
+    if (u != null) return u < 0 ? `<span class="bad">⚠ ${fmt(u)}</span>` : `사용 <b>${fmt(u)}</b>`;
+    return p == null ? '전월 -' : `전월 ${esc(p)}`;
+  }
   function render() {
-    renderVillas(); $('month').value = V.month;
+    renderVillas(); $('month').value = state.month;
     $('fFrom').value = V.fFrom; $('fTo').value = V.fTo; $('perFloor').value = V.perFloor;
+    $('entryCur').classList.toggle('on', !state.entryPrev); $('entryPrev').classList.toggle('on', state.entryPrev);
+    $('entryHint').innerHTML = state.entryPrev
+      ? `지금 <b>${mLong(entryMonth())} (전월지침)</b>을 입력하는 중입니다. 다 넣었으면 [당월지침]을 누르세요.`
+      : `<b>${mLong(state.month)}</b> 지침 입력 · 사용량 = 당월지침 − 전월지침(${mLabel(addMonth(state.month, -1))})`;
+    const vals = RD(V, entryMonth());
     const grid = $('grid'); grid.innerHTML = '';
-    const floors = V.fTo - V.fFrom + 1;
-    grid.style.gridTemplateColumns = `repeat(${Math.min(floors, 3)}, minmax(0, 1fr))`;
+    grid.style.gridTemplateColumns = `repeat(${Math.min(V.fTo - V.fFrom + 1, 3)}, minmax(0, 1fr))`;
     for (let f = V.fFrom; f <= V.fTo; f++) {
       const col = document.createElement('div'); col.className = 'col';
       col.innerHTML = `<h3>${f}층</h3>`;
       for (let u = 1; u <= V.perFloor; u++) {
         const no = String(f * 100 + u);
         const cell = document.createElement('div'); cell.className = 'cell'; cell.dataset.no = no;
-        cell.innerHTML = `<span>${no}호</span><input inputmode="decimal" data-no="${no}">`;
+        cell.innerHTML = `<span>${no}호</span><input inputmode="decimal" data-no="${no}"><div class="sub">${subText(no)}</div>`;
         const inp = cell.querySelector('input');
-        inp.value = V.values[no] ?? '';
+        inp.value = vals[no] ?? '';
         inp.classList.toggle('filled', !!inp.value);
         inp.addEventListener('focus', () => select(no));
-        inp.addEventListener('input', () => { setValue(no, inp.value, false); });
+        inp.addEventListener('input', () => setValue(no, inp.value, false));
         cell.addEventListener('click', () => select(no));
         col.appendChild(cell);
       }
@@ -266,88 +433,282 @@
     }
     if (!selected || !units().includes(selected)) selected = firstEmpty() || units()[0];
     select(selected);
+    if (state.tab === 'ana') renderAnalysis();
   }
   const cellOf = no => document.querySelector(`.cell[data-no="${no}"]`);
   function select(no) {
     document.querySelectorAll('.cell.sel').forEach(c => c.classList.remove('sel'));
     selected = no; const c = cellOf(no); if (c) c.classList.add('sel');
-    $('camTarget').textContent = no + '호' + (V.values[no] ? ` (${V.values[no]})` : '');
+    const v = RD(V, entryMonth())[no];
+    $('camTarget').textContent = no + '호' + (state.entryPrev ? ' [전월]' : '') + (v ? ` (${v})` : '');
   }
-  function firstEmpty() { return units().find(n => !V.values[n]); }
+  function firstEmpty() { const vals = RD(V, entryMonth()); return units().find(n => !vals[n]); }
   function nextOf(no) { const l = units(); return l[l.indexOf(no) + 1]; }
   function prevOf(no) { const l = units(); return l[l.indexOf(no) - 1]; }
 
+  function writeReading(v, m, no, val) {
+    val = String(val ?? '').trim();
+    if (val) (v.readings[m] ||= {})[no] = val;
+    else if (v.readings[m]) { delete v.readings[m][no]; if (!Object.keys(v.readings[m]).length) delete v.readings[m]; }
+    save();
+  }
   function setValue(no, val, fromVoice = true) {
     val = String(val).trim();
-    if (val) V.values[no] = val; else delete V.values[no];
-    save();
+    writeReading(V, entryMonth(), no, val);
     const c = cellOf(no); if (!c) return;
     const inp = c.querySelector('input');
     if (fromVoice) { inp.value = val; c.classList.remove('flash'); void c.offsetWidth; c.classList.add('flash');
       c.scrollIntoView({ block: 'nearest', behavior: 'smooth' }); }
     inp.classList.toggle('filled', !!val);
+    c.querySelector('.sub').innerHTML = subText(no);
     if (no === selected) select(no);
     renderVillas();
   }
 
-  $('month').addEventListener('input', e => { V.month = e.target.value; save(); });
+  $('month').addEventListener('change', e => { if (!e.target.value) return; state.month = e.target.value; save(); selected = null; render(); });
+  $('entryCur').onclick = () => { state.entryPrev = false; selected = null; render(); };
+  $('entryPrev').onclick = () => { state.entryPrev = true; selected = null; render(); };
   $('applyLayout').onclick = () => {
     const a = +$('fFrom').value, b = +$('fTo').value, p = +$('perFloor').value;
     if (!(a >= 1 && b >= a && p >= 1 && p <= 20)) return alert('층/세대 값을 확인하세요');
     Object.assign(V, { fFrom: a, fTo: b, perFloor: p }); save(); render();
   };
-  $('clearBtn').onclick = () => { if (confirm('입력한 검침값을 모두 지울까요?')) { V.values = {}; save(); render(); } };
-
-  // ---------- 엑셀(CSV) ----------
-  function toCSV() {
-    const rows = [[V.villa || '빌라명', V.month]];
-    const floors = []; for (let f = V.fFrom; f <= V.fTo; f++) floors.push(f);
-    rows.push(floors.flatMap(f => [`${f}층 호수`, '검침값']));
-    for (let u = 1; u <= V.perFloor; u++)
-      rows.push(floors.flatMap(f => { const no = String(f * 100 + u); return [no + '호', V.values[no] ?? '']; }));
-    return '﻿' + rows.map(r => r.map(v => `"${String(v).replace(/"/g, '""')}"`).join(',')).join('\r\n');
-  }
-  const fileName = () => `수도검침_${V.villa || '빌라'}_${V.month}.csv`;
-  $('exportBtn').onclick = () => {
-    const a = document.createElement('a');
-    a.href = URL.createObjectURL(new Blob([toCSV()], { type: 'text/csv;charset=utf-8' }));
-    a.download = fileName(); a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+  $('clearBtn').onclick = () => {
+    const m = entryMonth();
+    if (confirm(`${V.villa} ${mLong(m)} 지침을 모두 지울까요?`)) { delete V.readings[m]; save(); render(); }
   };
+
+  // ---------- 엑셀(CSV): 빌라·월·호수·전월·당월·사용량 ----------
+  function toCSV(list) {
+    const m = state.month, pm = addMonth(m, -1);
+    const rows = [['빌라', '검침월', '호수', `전월지침(${mLabel(pm)})`, `당월지침(${mLabel(m)})`, '사용량(㎥)', `전월사용량(${mLabel(pm)})`]];
+    list.forEach(v => unitsOf(v).forEach(no => rows.push([v.villa, m, no + '호', RD(v, pm)[no] ?? '', RD(v, m)[no] ?? '',
+      usage(v, no, m) ?? '', usage(v, no, pm) ?? ''])));
+    return '﻿' + rows.map(r => r.map(x => `"${String(x).replace(/"/g, '""')}"`).join(',')).join('\r\n');
+  }
+  const pickVillas = () => state.villas.length > 1 &&
+    confirm(`빌라 ${state.villas.length}곳을 모두 포함할까요?\n[취소]를 누르면 "${V.villa}"만 합니다.`) ? state.villas : [V];
+  const fileName = list => `수도검침_${list.length > 1 ? '전체' : list[0].villa}_${state.month}.csv`;
+  function download(list) {
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(new Blob([toCSV(list)], { type: 'text/csv;charset=utf-8' }));
+    a.download = fileName(list); a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+  }
+  $('exportBtn').onclick = () => download(pickVillas());
+  $('exportBtn2').onclick = () => download(pickVillas());
+
   // ---------- 카카오톡 보내기 ----------
   function villaText(v) {
-    const lines = [`🏠 ${v.villa}  (${v.month} 수도검침)`], missing = [];
+    const m = state.month, lines = [`🏠 ${v.villa}  (${mLong(m)} 수도검침)`], missing = [];
     for (let f = v.fFrom; f <= v.fTo; f++) {
       lines.push('');
       for (let u = 1; u <= v.perFloor; u++) {
-        const no = String(f * 100 + u), val = v.values[no];
-        lines.push(`${no}호 : ${val ?? '-'}`); if (!val) missing.push(no);
+        const no = String(f * 100 + u), val = RD(v, m)[no], use = usage(v, no, m);
+        lines.push(`${no}호 : ${val ?? '-'}` + (use != null ? `  (사용 ${fmt(use)}㎥${use < 0 ? ' ⚠확인' : ''})` : ''));
+        if (!val) missing.push(no);
       }
     }
-    if (missing.length) lines.push('', `⚠ 미입력 ${missing.length}세대: ${missing.join(', ')}`);
+    const t = villaTotal(v, m);
+    if (t.n) lines.push('', `💧 총 사용량 ${fmt(t.total)}㎥ · 세대 평균 ${fmt(r2(t.total / t.n))}㎥`);
+    if (missing.length) lines.push(`⚠ 미입력 ${missing.length}세대: ${missing.join(', ')}`);
     return lines.join('\n');
   }
-  $('kakaoBtn').onclick = async () => {
-    let list = [V];
-    if (state.villas.length > 1 && confirm(`빌라 ${state.villas.length}곳을 모두 보낼까요?\n[취소]를 누르면 "${V.villa}"만 보냅니다.`)) list = state.villas;
-    const text = list.map(villaText).join('\n\n━━━━━━━━━━\n\n');
+  async function sendKakao() {
+    const text = pickVillas().map(villaText).join('\n\n━━━━━━━━━━\n\n');
     // 공유창에서 '카카오톡'을 고르면 대화방으로 전송됩니다
     if (navigator.share) { try { await navigator.share({ text }); } catch (e) {} return; }
     try { await navigator.clipboard.writeText(text); } catch (e) {}
     alert('검침 내용을 복사했습니다.\n카카오톡 대화방에 붙여넣기 하세요.');
     location.href = 'kakaotalk://launch';
-  };
-
+  }
+  $('kakaoBtn').onclick = sendKakao; $('kakaoBtn2').onclick = sendKakao;
   $('shareBtn').onclick = async () => {
-    const file = new File([toCSV()], fileName(), { type: 'text/csv' });
-    const text = `${V.villa} ${V.month} 수도검침\n` + units().map(n => `${n}호: ${V.values[n] ?? '-'}`).join('\n');
+    const list = pickVillas(), file = new File([toCSV(list)], fileName(list), { type: 'text/csv' });
     try {
-      if (navigator.canShare && navigator.canShare({ files: [file] })) await navigator.share({ files: [file], title: fileName() });
-      else if (navigator.share) await navigator.share({ text });
-      else { await navigator.clipboard.writeText(text); alert('내용을 복사했습니다'); }
+      if (navigator.canShare && navigator.canShare({ files: [file] })) await navigator.share({ files: [file], title: file.name });
+      else download(list);
     } catch (e) {}
   };
 
-  // ---------- 음성 안내 (TTS) ----------
+  // =====================================================================
+  // 사용량 분석
+  // =====================================================================
+  const tip = $('tip');
+  function showTip(html, x, y) {
+    tip.innerHTML = html; tip.style.display = 'block';
+    const w = tip.offsetWidth, h = tip.offsetHeight;
+    tip.style.left = Math.max(8, Math.min(innerWidth - w - 8, x - w / 2)) + 'px';
+    tip.style.top = Math.max(8, y - h - 12) + 'px';
+  }
+  const hideTip = () => { tip.style.display = 'none'; };
+  addEventListener('scroll', hideTip, { passive: true });
+
+  function niceMax(v) {
+    if (!(v > 0)) return 1;
+    const p = 10 ** Math.floor(Math.log10(v));
+    for (const k of [1, 1.2, 1.5, 2, 2.5, 3, 4, 5, 6, 8, 10]) if (k * p >= v) return k * p;
+    return 10 * p;
+  }
+  // 세로 막대 (월별) — data: [{ label, value|null, tip, cur }]
+  function colChart(el, data) {
+    const W = Math.max(280, el.clientWidth || 320), H = 190, L = 40, R = 8, T = 22, B = 24;
+    const pw = W - L - R, ph = H - T - B, n = data.length;
+    const max = niceMax(Math.max(0, ...data.map(d => d.value || 0)));
+    const slot = pw / n, bw = Math.max(4, Math.min(32, slot - 4));
+    const y = v => T + ph - (v / max) * ph;
+    let s = `<svg viewBox="0 0 ${W} ${H}" role="img">`;
+    for (const t of [0, .5, 1]) {
+      const v = max * t, yy = y(v);
+      s += `<line class="${t ? 'gl' : 'base'}" x1="${L}" x2="${W - R}" y1="${yy}" y2="${yy}"/>` +
+        `<text x="${L - 6}" y="${yy + 4}" text-anchor="end">${fmt(r2(v))}</text>`;
+    }
+    const lastIdx = data.map(d => d.value != null).lastIndexOf(true);
+    data.forEach((d, i) => {
+      const cx = L + slot * i + slot / 2;
+      s += `<text x="${cx}" y="${H - 6}" text-anchor="middle">${esc(d.label)}</text>`;
+      s += `<rect class="hit" data-i="${i}" x="${L + slot * i}" y="${T}" width="${slot}" height="${ph}"/>`;
+      if (d.value == null) { s += '<g></g>'; return; }
+      const v = Math.max(0, d.value), top = y(v), h = T + ph - top, x0 = cx - bw / 2, rr = Math.min(4, bw / 2, h);
+      s += `<path class="bar ${d.cur ? 'cur' : 'old'}" d="M${x0},${T + ph} V${top + rr} Q${x0},${top} ${x0 + rr},${top} H${x0 + bw - rr} Q${x0 + bw},${top} ${x0 + bw},${top + rr} V${T + ph} Z"/>`;
+      if (i === lastIdx) s += `<text class="lbl" x="${cx}" y="${top - 6}" text-anchor="middle">${fmt(d.value)}</text>`;
+    });
+    el.innerHTML = s + '</svg>';
+    el.querySelectorAll('.hit').forEach(r => {
+      const d = data[+r.dataset.i];
+      const on = e => { el.querySelectorAll('.hit.on').forEach(x => x.classList.remove('on')); r.classList.add('on');
+        const b = r.getBoundingClientRect(); showTip(d.tip, b.left + b.width / 2, b.top + 20); };
+      r.addEventListener('pointerenter', on); r.addEventListener('pointerdown', on);
+      r.addEventListener('pointerleave', () => { r.classList.remove('on'); hideTip(); });
+    });
+  }
+  // 가로 막대 목록 — rows: [{ key, label, value|null, text, status }]
+  function hbars(el, rows, onClick) {
+    const max = niceMax(Math.max(0, ...rows.map(r => r.value || 0)));
+    el.innerHTML = rows.map((r, i) => `<div class="hbar" data-i="${i}">
+      <div class="lab">${esc(r.label)}</div>
+      <div class="track">${r.value != null ? `<div class="fill ${r.status || ''}" style="width:${Math.max(0, r.value) / max * 100}%"></div>` : ''}</div>
+      <div class="val ${r.value == null ? 'none' : ''}">${r.text}</div></div>`).join('');
+    el.querySelectorAll('.hbar').forEach(d => d.onclick = () => onClick(rows[+d.dataset.i]));
+  }
+
+  // 이상 세대 판단
+  function flagOf(v, no, m, avg) {
+    const u = usage(v, no, m), last = usage(v, no, addMonth(m, -1));
+    if (u == null) return null;
+    if (u < 0) return { status: 'critical', icon: '🔴', tag: '지침 확인', msg: `당월지침이 전월보다 작음 (${fmt(u)}㎥)` };
+    if (avg > 0 && u >= 5 && u > avg * 2) return { status: 'critical', icon: '🔴', tag: '과다 사용', msg: `평균의 ${(u / avg).toFixed(1)}배 · 누수 의심` };
+    if (last != null && last > 0 && u >= 5 && u > last * 2) return { status: 'warning', icon: '🟠', tag: '급증', msg: `전월 ${fmt(last)}㎥ → ${fmt(u)}㎥` };
+    if (u === 0) return { status: 'warning', icon: '🟡', tag: '사용 없음', msg: '공실 또는 계량기 확인' };
+    return null;
+  }
+
+  let sortKey = 'no', sortDir = 1;
+  function renderAnalysis() {
+    const m = state.month, pm = addMonth(m, -1);
+    const list = units();
+    const t = villaTotal(V, m), tp = villaTotal(V, pm);
+    const avg = t.n ? r2(t.total / t.n) : 0;
+    const rows = list.map(no => {
+      const use = usage(V, no, m);
+      return { no, prev: RD(V, pm)[no], cur: RD(V, m)[no], use, last: usage(V, no, pm), flag: flagOf(V, no, m, avg) };
+    });
+
+    // 요약 타일
+    const diff = tp.total > 0 && t.n ? r2((t.total - tp.total) / tp.total * 100) : null;
+    const missing = list.filter(no => RD(V, m)[no] == null).length;
+    $('tiles').innerHTML = `
+      <div class="tile"><div class="k">${mLabel(m)} 총 사용량</div><div class="v">${t.n ? fmt(t.total) : '-'}<small>㎥</small></div>
+        <div class="d">${diff == null ? `${mLabel(pm)} 자료 없음` : `${mLabel(pm)} 대비 <span class="${diff > 0 ? 'up' : 'down'}">${diff > 0 ? '▲' : '▼'} ${fmt(Math.abs(diff))}%</span>`}</div></div>
+      <div class="tile"><div class="k">세대 평균</div><div class="v">${t.n ? fmt(avg) : '-'}<small>㎥</small></div>
+        <div class="d">${tp.n ? `${mLabel(pm)} 평균 ${fmt(r2(tp.total / tp.n))}㎥` : '&nbsp;'}</div></div>
+      <div class="tile"><div class="k">사용량 계산된 세대</div><div class="v">${t.n}<small>/ ${list.length}</small></div>
+        <div class="d">${missing ? `당월 미입력 ${missing}세대` : '당월 모두 입력'}</div></div>
+      <div class="tile"><div class="k">확인 필요</div><div class="v">${rows.filter(r => r.flag).length}<small>세대</small></div>
+        <div class="d">과다·급증·지침오류·사용없음</div></div>`;
+
+    // 확인 필요 세대
+    const flagged = rows.filter(r => r.flag).sort((a, b) => (a.flag.status === 'critical' ? 0 : 1) - (b.flag.status === 'critical' ? 0 : 1));
+    $('flagCard').style.display = t.n ? '' : 'none';
+    $('flags').innerHTML = flagged.length ? flagged.map(r => `<button class="flag ${r.flag.status}" data-no="${r.no}">
+        <span>${r.flag.icon}</span><b>${r.no}호</b><span class="tag">${r.flag.tag}</span><span style="flex:1">${r.flag.msg}</span></button>`).join('')
+      : '<div class="hint">✅ 이상 없음</div>';
+    $('flags').querySelectorAll('.flag').forEach(b => b.onclick = () => openUnit(b.dataset.no));
+
+    // 세대별 사용량 막대
+    $('unitChartTitle').textContent = `세대별 사용량 (${mLabel(m)}, ㎥)`;
+    hbars($('unitBars'), rows.map(r => ({ key: r.no, label: r.no + '호', value: r.use,
+      status: r.flag ? r.flag.status : '', text: r.use == null ? (r.cur == null ? '미입력' : '전월없음') : fmt(r.use) + (r.flag ? ' ' + r.flag.icon : '') })),
+      r => openUnit(r.key));
+    if (!t.n) $('unitBars').insertAdjacentHTML('afterbegin',
+      `<div class="hint" style="margin-bottom:8px">사용량을 계산하려면 <b>전월지침(${mLabel(pm)})</b>과 <b>당월지침(${mLabel(m)})</b>이 모두 필요합니다.<br>검침 입력 탭에서 [전월지침]을 눌러 지난달 값을 넣어주세요.</div>`);
+
+    // 월별 총 사용량 (최근 12개월)
+    let months = []; for (let i = 11; i >= 0; i--) months.push(addMonth(m, -i));
+    const totals = months.map(mm => ({ mm, ...villaTotal(V, mm) }));
+    const first = totals.findIndex(x => x.n > 0);
+    const shown = first < 0 ? totals.slice(-1) : totals.slice(Math.min(first, 6)); // 최소 6개월은 보이기
+    colChart($('monthChart'), shown.map(x => ({ label: mLabel(x.mm), value: x.n ? x.total : null, cur: x.mm === m,
+      tip: `<b>${mLong(x.mm)}</b><br>${x.n ? `총 ${fmt(x.total)}㎥ · ${x.n}세대<br>평균 ${fmt(r2(x.total / x.n))}㎥` : '자료 없음'}` })));
+
+    // 빌라 비교
+    $('villaCmpCard').style.display = state.villas.length > 1 ? '' : 'none';
+    $('villaCmpTitle').textContent = `빌라별 총 사용량 (${mLabel(m)}, ㎥)`;
+    hbars($('villaBars'), state.villas.map((v, i) => { const x = villaTotal(v, m);
+      return { key: i, label: v.villa, value: x.n ? x.total : null, text: x.n ? `${fmt(x.total)}` : '자료없음' }; }),
+      r => { if (r.key !== state.cur) switchVilla(r.key); });
+
+    // 상세표
+    const cols = [['no', '호수'], ['prev', `전월(${mLabel(pm)})`], ['cur', `당월(${mLabel(m)})`], ['use', '사용량'], ['last', '전월사용'], ['chg', '증감']];
+    rows.forEach(r => r.chg = r.use != null && r.last != null ? r2(r.use - r.last) : null);
+    const sorted = [...rows].sort((a, b) => {
+      const va = sortKey === 'no' ? +a.no : num(a[sortKey]), vb = sortKey === 'no' ? +b.no : num(b[sortKey]);
+      if (va == null) return 1; if (vb == null) return -1; return (va - vb) * sortDir;
+    });
+    $('anaTable').innerHTML = `<thead><tr>${cols.map(([k, n]) => `<th data-k="${k}">${n}${sortKey === k ? (sortDir > 0 ? ' ▲' : ' ▼') : ''}</th>`).join('')}</tr></thead><tbody>` +
+      sorted.map(r => `<tr class="${r.flag ? r.flag.status : ''}">
+        <td class="link" data-no="${r.no}">${r.no}호${r.flag ? ' ' + r.flag.icon : ''}</td>
+        <td><input inputmode="decimal" data-m="${pm}" data-no="${r.no}" value="${esc(r.prev ?? '')}"></td>
+        <td><input inputmode="decimal" data-m="${m}" data-no="${r.no}" value="${esc(r.cur ?? '')}"></td>
+        <td><b>${fmt(r.use)}</b></td><td>${fmt(r.last)}</td>
+        <td class="${r.chg > 0 ? 'up' : r.chg < 0 ? 'down' : ''}">${r.chg == null ? '-' : (r.chg > 0 ? '+' : '') + fmt(r.chg)}</td></tr>`).join('') +
+      `</tbody><tfoot><tr><td><b>합계</b></td><td></td><td></td><td><b>${t.n ? fmt(t.total) : '-'}</b></td><td>${tp.n ? fmt(tp.total) : '-'}</td><td></td></tr></tfoot>`;
+    $('anaTable').querySelectorAll('th').forEach(th => th.onclick = () => {
+      const k = th.dataset.k; if (sortKey === k) sortDir = -sortDir; else { sortKey = k; sortDir = k === 'no' ? 1 : -1; } renderAnalysis(); });
+    $('anaTable').querySelectorAll('td.link').forEach(td => td.onclick = () => openUnit(td.dataset.no));
+    $('anaTable').querySelectorAll('input').forEach(inp => inp.addEventListener('change', () => {
+      writeReading(V, inp.dataset.m, inp.dataset.no, inp.value); render(); }));
+  }
+
+  // 세대 상세 (월별 내역)
+  function openUnit(no) {
+    const m = state.month;
+    let months = []; for (let i = 11; i >= 0; i--) months.push(addMonth(m, -i));
+    const hist = months.map(mm => ({ mm, reading: RD(V, mm)[no], use: usage(V, no, mm) }));
+    const first = hist.findIndex(h => h.use != null);
+    const shown = first < 0 ? hist.slice(-6) : hist.slice(Math.min(first, 6));
+    const uses = hist.filter(h => h.mm !== m && h.use != null && h.use >= 0).map(h => h.use);
+    const avg = uses.length ? r2(uses.reduce((a, b) => a + b, 0) / uses.length) : null;
+    const cur = usage(V, no, m), vt = villaTotal(V, m), vAvg = vt.n ? r2(vt.total / vt.n) : null;
+    $('umTitle').textContent = `${V.villa} ${no}호`;
+    $('umTiles').innerHTML = `
+      <div class="tile"><div class="k">${mLabel(m)} 사용량</div><div class="v">${fmt(cur)}<small>㎥</small></div></div>
+      <div class="tile"><div class="k">이 세대 이전 월평균</div><div class="v">${fmt(avg)}<small>㎥</small></div><div class="d">${uses.length}개월 기준</div></div>
+      <div class="tile"><div class="k">빌라 세대 평균</div><div class="v">${fmt(vAvg)}<small>㎥</small></div></div>
+      <div class="tile"><div class="k">현재 지침</div><div class="v">${esc(RD(V, m)[no] ?? '-')}</div></div>`;
+    $('unitModal').classList.add('open');
+    colChart($('umChart'), shown.map(h => ({ label: mLabel(h.mm), value: h.use, cur: h.mm === m,
+      tip: `<b>${mLong(h.mm)}</b><br>지침 ${h.reading ?? '-'}<br>사용 ${fmt(h.use)}㎥` })));
+    $('umTable').innerHTML = `<thead><tr><th>월</th><th>지침</th><th>사용량</th></tr></thead><tbody>` +
+      [...hist].reverse().filter(h => h.reading != null).map(h =>
+        `<tr><td>${mLong(h.mm)}</td><td>${esc(h.reading)}</td><td><b>${fmt(h.use)}</b></td></tr>`).join('') + '</tbody>';
+  }
+  $('umClose').onclick = () => { $('unitModal').classList.remove('open'); hideTip(); };
+  $('unitModal').onclick = e => { if (e.target.id === 'unitModal') $('umClose').onclick(); };
+  let resizeT; addEventListener('resize', () => { clearTimeout(resizeT); resizeT = setTimeout(() => { if (state.tab === 'ana') renderAnalysis(); }, 200); });
+
+  // =====================================================================
+  // 음성
+  // =====================================================================
   $('ttsOn').checked = state.tts !== false;
   $('ttsOn').onchange = e => { state.tts = e.target.checked; save(); };
   function speak(t) {
@@ -400,14 +761,19 @@
     if (pairs.length) return { type: 'pairs', pairs, score: 10 * pairs.length };
     const u = t.match(/(?<![\d.])(\d{3,4})\s*(?:호|번)/);
     if (u && list.includes(u[1])) return { type: 'unit', no: u[1], score: 3 };
-    const num = t.replace(/\s/g, '').match(/\d+(?:\.\d+)?/);
-    if (num) return { type: 'num', val: num[0], score: 2 };
+    const n = t.replace(/\s/g, '').match(/\d+(?:\.\d+)?/);
+    if (n) return { type: 'num', val: n[0], score: 2 };
     return { type: 'none', score: 0 };
   }
   function best(alts) { // 구글이 준 후보 여러 개 중 "호수+숫자" 모양에 가장 잘 맞는 것
     let top = null;
     for (const a of alts) { const r = parse(a); if (!top || r.score > top.score) top = r; }
     return top;
+  }
+  function useNote(no) { // 입력 직후 사용량 안내
+    if (state.entryPrev) return '';
+    const u = usage(V, no, state.month);
+    return u == null ? '' : u < 0 ? ' ⚠지침확인' : ` (사용 ${fmt(u)})`;
   }
   function apply(r, raw) {
     const done = [];
@@ -421,7 +787,7 @@
     }
     if (r.type === 'num' && selected) { const no = selected; setValue(no, r.val); done.push([no, r.val]); select(nextOf(no) || no); }
     if (done.length) {
-      status('✅ ' + done.map(([n, v]) => `<b>${n}호 ${v}</b>`).join(', ') + ` → 다음: ${selected}호`);
+      status('✅ ' + done.map(([n, v]) => `<b>${n}호 ${v}</b>${useNote(n)}`).join(', ') + ` → 다음: ${selected}호`);
       speak(done.map(([n, v]) => `${n}호 ${v}`).join(', '));
       return true;
     }
@@ -459,7 +825,7 @@
       restartTimer = setTimeout(again, 300);
     };
     rec.start();
-    status(`🎙 말하세요… <b>${selected}호</b>`);
+    status(`🎙 말하세요… <b>${selected}호</b>${state.entryPrev ? ' [전월지침]' : ''}`);
   }
   function startListen() {
     if (!SR) return alert('이 브라우저는 음성 인식을 지원하지 않습니다.\n아래 ⌨️ 입력창을 누르고 키보드의 🎤 버튼으로 말하세요.');
@@ -486,23 +852,22 @@
   });
 
   // ---------- 통합검색 (모든 빌라) ----------
-  function unitsOf(v) { const l = []; for (let f = v.fFrom; f <= v.fTo; f++) for (let u = 1; u <= v.perFloor; u++) l.push(String(f * 100 + u)); return l; }
   function search() {
     const q = normalize($('search').value.trim()), box = $('results');
     if (!q) { box.innerHTML = ''; return; }
     const tokens = q.split(/\s+/).map(t => t.replace(/호$/, '')).filter(Boolean);
     const hits = [];
     state.villas.forEach((v, i) => unitsOf(v).forEach(no => {
-      const val = v.values[no] ?? '';
+      const val = RD(v, state.month)[no] ?? '';
       const ok = tokens.every(t => t === '미입력' ? !val : t === '입력' ? !!val
         : v.villa.includes(t) || no.includes(t) || (!!val && val.includes(t)));
-      if (ok) hits.push({ i, no, val, name: v.villa });
+      if (ok) hits.push({ i, no, val, name: v.villa, use: usage(v, no, state.month) });
     }));
     const MAX = 60;
     box.innerHTML = hits.length
-      ? `<div class="hint">${hits.length}건</div>` + hits.slice(0, MAX).map(h =>
+      ? `<div class="hint">${hits.length}건 (${mLong(state.month)})</div>` + hits.slice(0, MAX).map(h =>
           `<button class="hit" data-i="${h.i}" data-no="${h.no}"><b>${esc(h.name)}</b><span>${h.no}호</span>` +
-          `<em class="${h.val ? '' : 'miss'}">${h.val ? esc(h.val) : '미입력'}</em></button>`).join('')
+          `<em class="${h.val ? '' : 'miss'}">${h.val ? esc(h.val) : '미입력'}</em><small>${h.use != null ? `사용 ${fmt(h.use)}` : ''}</small></button>`).join('')
         + (hits.length > MAX ? `<div class="hint">… ${hits.length - MAX}건 더 있음 (검색어를 더 넣어보세요)</div>` : '')
       : '<div class="hint">검색 결과 없음</div>';
   }
@@ -517,7 +882,9 @@
     c.classList.remove('flash'); void c.offsetWidth; c.classList.add('flash');
   });
 
-  // ---------- 카메라 & 손전등 ----------
+  // =====================================================================
+  // 카메라 & 손전등
+  // =====================================================================
   let stream = null, track = null, torchOn = false;
   async function openStream() {
     if (stream) return true;
@@ -588,13 +955,15 @@
       const no = selected, val = nums[0];
       if (confirm(`${no}호 = ${val}\n맞으면 [확인], 틀리면 [취소] 후 말로 입력하세요`)) {
         setValue(no, val); select(nextOf(no) || no);
-        status(`✅ <b>${no}호 ${val}</b> → 다음: ${selected}호`); speak(`${no}호 ${val}`);
+        status(`✅ <b>${no}호 ${val}</b>${useNote(no)} → 다음: ${selected}호`); speak(`${no}호 ${val}`);
       } else status(`<b>${no}호</b> 숫자를 말해주세요`);
     } catch (e) { c.style.display = 'none'; status('❌ ' + e.message); }
   };
 
   render();
+  setTab(state.tab);
   if ('serviceWorker' in navigator && location.protocol === 'https:') navigator.serviceWorker.register('sw.js').catch(() => {});
 })();
 </script>
 </body>
+</html>
