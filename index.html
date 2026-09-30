@@ -34,7 +34,9 @@
   input[type=text], input[type=month], input[type=number], input[inputmode] {
     font-size: 16px; padding: 8px 10px; border: 1px solid var(--line); border-radius: 8px;
     background: var(--card); color: var(--text); min-width: 0; }
-  #villa { flex: 1; font-weight: 700; }
+  #villaSel { flex: 1; min-width: 0; font-size: 17px; font-weight: 700; padding: 8px 10px; border: 1px solid var(--line);
+    border-radius: 8px; background: var(--card); color: var(--text); }
+  .btn.kakao { background: #fee500; color: #191919; }
   .grid { display: grid; gap: 8px; }
   .col h3 { margin: 0 0 6px; font-size: 14px; color: var(--muted); text-align: center; }
   .cell { display: flex; align-items: center; gap: 6px; padding: 4px; border-radius: 8px; border: 2px solid transparent; }
@@ -81,8 +83,14 @@
 <main>
   <div class="card">
     <div class="row">
-      <input type="text" id="villa" placeholder="빌라명 입력">
+      <select id="villaSel"></select>
       <input type="month" id="month">
+    </div>
+    <div class="row" style="margin-top:8px">
+      <button class="btn small" id="villaAdd">➕ 빌라 추가</button>
+      <button class="btn small" id="villaRename">✏️ 이름 변경</button>
+      <button class="btn small" id="villaDel">🗑 빌라 삭제</button>
+      <span class="hint" id="villaProgress" style="margin-left:auto"></span>
     </div>
   </div>
 
@@ -90,6 +98,7 @@
 
   <div class="card">
     <div class="row">
+      <button class="btn small kakao" id="kakaoBtn">💬 카톡 보내기</button>
       <button class="btn small" id="exportBtn">📥 엑셀(CSV) 저장</button>
       <button class="btn small" id="shareBtn">📤 공유</button>
       <button class="btn small" id="clearBtn">🗑 값 지우기</button>
@@ -114,7 +123,9 @@
     🎤 <b>음성</b>: "201호 1234" 처럼 호수와 숫자를 말하세요. 여러 개 연속으로 말해도 됩니다.<br>
     &nbsp;&nbsp;&nbsp;호수 없이 숫자만 말하면 <b>선택된 칸</b>에 들어가고 다음 칸으로 넘어갑니다.<br>
     📷 <b>카메라</b>: 계량기를 비추고 손전등을 켠 뒤 숫자를 말하거나, 📸 촬영하면 숫자를 자동으로 읽습니다.<br>
-    🔦 <b>손전등</b>: 오른쪽 위 버튼 (안드로이드 크롬 지원)
+    🔦 <b>손전등</b>: 오른쪽 위 버튼 (안드로이드 크롬 지원)<br>
+    🏠 <b>빌라 추가</b>: 빌라마다 따로 표가 저장됩니다. 위 목록에서 골라 바꾸세요.<br>
+    💬 <b>카톡 보내기</b>: 공유창에서 <b>카카오톡</b>을 고르고 보낼 대화방을 선택하세요.
   </div>
 </main>
 
@@ -150,40 +161,77 @@
 <script>
 (() => {
   const $ = id => document.getElementById(id);
-  const KEY = 'waterMeter.v1';
+  const KEY = 'waterMeter.v2';
 
-  // ---------- 저장 ----------
-  let state = load() || {
-    villa: '', month: new Date().toISOString().slice(0, 7),
-    fFrom: 2, fTo: 4, perFloor: 9, values: {}
-  };
-  function load() { try { return JSON.parse(localStorage.getItem(KEY)); } catch (e) { return null; } }
+  // ---------- 저장 (빌라 여러 개) ----------
+  const thisMonth = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`; };
+  const newVilla = (name, from) => ({ villa: name, month: thisMonth(),
+    fFrom: from ? from.fFrom : 2, fTo: from ? from.fTo : 4, perFloor: from ? from.perFloor : 9, values: {} });
+  function load(k) { try { return JSON.parse(localStorage.getItem(k)); } catch (e) { return null; } }
   function save() { try { localStorage.setItem(KEY, JSON.stringify(state)); } catch (e) {} }
+  let state = load(KEY);
+  if (!state || !Array.isArray(state.villas) || !state.villas.length) {
+    const old = load('waterMeter.v1'); // 이전 버전 데이터 옮기기
+    state = { cur: 0, tts: old ? old.tts : true,
+      villas: [old ? { ...newVilla(''), ...old, villa: old.villa || '빌라 1' } : newVilla('빌라 1')] };
+    delete state.villas[0].tts;
+    save();
+  }
+  if (!state.villas[state.cur]) state.cur = 0;
+  let V = state.villas[state.cur];
+
+  function renderVillas() {
+    $('villaSel').innerHTML = state.villas.map((v, i) => {
+      const n = Object.keys(v.values).length, total = (v.fTo - v.fFrom + 1) * v.perFloor;
+      return `<option value="${i}">${esc(v.villa || '(이름 없음)')}  (${n}/${total})</option>`;
+    }).join('');
+    $('villaSel').value = state.cur;
+    $('villaDel').disabled = state.villas.length < 2;
+  }
+  const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+  function switchVilla(i) {
+    state.cur = i; V = state.villas[i]; selected = null; save(); render();
+    status(`🏠 <b>${esc(V.villa)}</b>`); speak(V.villa);
+  }
+  $('villaSel').onchange = e => switchVilla(+e.target.value);
+  $('villaAdd').onclick = () => {
+    const name = (prompt('새 빌라 이름을 입력하세요', '') || '').trim(); if (!name) return;
+    state.villas.push(newVilla(name, V)); switchVilla(state.villas.length - 1);
+  };
+  $('villaRename').onclick = () => {
+    const name = (prompt('빌라 이름', V.villa) || '').trim(); if (!name) return;
+    V.villa = name; save(); renderVillas();
+  };
+  $('villaDel').onclick = () => {
+    if (state.villas.length < 2) return;
+    if (!confirm(`"${V.villa}" 빌라와 검침값을 삭제할까요?`)) return;
+    state.villas.splice(state.cur, 1); switchVilla(Math.max(0, state.cur - 1));
+  };
 
   const units = () => {
     const list = [];
-    for (let f = state.fFrom; f <= state.fTo; f++)
-      for (let u = 1; u <= state.perFloor; u++) list.push(String(f * 100 + u));
+    for (let f = V.fFrom; f <= V.fTo; f++)
+      for (let u = 1; u <= V.perFloor; u++) list.push(String(f * 100 + u));
     return list;
   };
   let selected = null;
 
   // ---------- 표 그리기 ----------
   function render() {
-    $('villa').value = state.villa; $('month').value = state.month;
-    $('fFrom').value = state.fFrom; $('fTo').value = state.fTo; $('perFloor').value = state.perFloor;
+    renderVillas(); $('month').value = V.month;
+    $('fFrom').value = V.fFrom; $('fTo').value = V.fTo; $('perFloor').value = V.perFloor;
     const grid = $('grid'); grid.innerHTML = '';
-    const floors = state.fTo - state.fFrom + 1;
+    const floors = V.fTo - V.fFrom + 1;
     grid.style.gridTemplateColumns = `repeat(${Math.min(floors, 3)}, minmax(0, 1fr))`;
-    for (let f = state.fFrom; f <= state.fTo; f++) {
+    for (let f = V.fFrom; f <= V.fTo; f++) {
       const col = document.createElement('div'); col.className = 'col';
       col.innerHTML = `<h3>${f}층</h3>`;
-      for (let u = 1; u <= state.perFloor; u++) {
+      for (let u = 1; u <= V.perFloor; u++) {
         const no = String(f * 100 + u);
         const cell = document.createElement('div'); cell.className = 'cell'; cell.dataset.no = no;
         cell.innerHTML = `<span>${no}호</span><input inputmode="decimal" data-no="${no}">`;
         const inp = cell.querySelector('input');
-        inp.value = state.values[no] ?? '';
+        inp.value = V.values[no] ?? '';
         inp.classList.toggle('filled', !!inp.value);
         inp.addEventListener('focus', () => select(no));
         inp.addEventListener('input', () => { setValue(no, inp.value, false); });
@@ -199,15 +247,15 @@
   function select(no) {
     document.querySelectorAll('.cell.sel').forEach(c => c.classList.remove('sel'));
     selected = no; const c = cellOf(no); if (c) c.classList.add('sel');
-    $('camTarget').textContent = no + '호' + (state.values[no] ? ` (${state.values[no]})` : '');
+    $('camTarget').textContent = no + '호' + (V.values[no] ? ` (${V.values[no]})` : '');
   }
-  function firstEmpty() { return units().find(n => !state.values[n]); }
+  function firstEmpty() { return units().find(n => !V.values[n]); }
   function nextOf(no) { const l = units(); return l[l.indexOf(no) + 1]; }
   function prevOf(no) { const l = units(); return l[l.indexOf(no) - 1]; }
 
   function setValue(no, val, fromVoice = true) {
     val = String(val).trim();
-    if (val) state.values[no] = val; else delete state.values[no];
+    if (val) V.values[no] = val; else delete V.values[no];
     save();
     const c = cellOf(no); if (!c) return;
     const inp = c.querySelector('input');
@@ -215,34 +263,59 @@
       c.scrollIntoView({ block: 'nearest', behavior: 'smooth' }); }
     inp.classList.toggle('filled', !!val);
     if (no === selected) select(no);
+    renderVillas();
   }
 
-  ['villa', 'month'].forEach(id => $(id).addEventListener('input', e => { state[id] = e.target.value; save(); }));
+  $('month').addEventListener('input', e => { V.month = e.target.value; save(); });
   $('applyLayout').onclick = () => {
     const a = +$('fFrom').value, b = +$('fTo').value, p = +$('perFloor').value;
     if (!(a >= 1 && b >= a && p >= 1 && p <= 20)) return alert('층/세대 값을 확인하세요');
-    Object.assign(state, { fFrom: a, fTo: b, perFloor: p }); save(); render();
+    Object.assign(V, { fFrom: a, fTo: b, perFloor: p }); save(); render();
   };
-  $('clearBtn').onclick = () => { if (confirm('입력한 검침값을 모두 지울까요?')) { state.values = {}; save(); render(); } };
+  $('clearBtn').onclick = () => { if (confirm('입력한 검침값을 모두 지울까요?')) { V.values = {}; save(); render(); } };
 
   // ---------- 엑셀(CSV) ----------
   function toCSV() {
-    const rows = [[state.villa || '빌라명', state.month]];
-    const floors = []; for (let f = state.fFrom; f <= state.fTo; f++) floors.push(f);
+    const rows = [[V.villa || '빌라명', V.month]];
+    const floors = []; for (let f = V.fFrom; f <= V.fTo; f++) floors.push(f);
     rows.push(floors.flatMap(f => [`${f}층 호수`, '검침값']));
-    for (let u = 1; u <= state.perFloor; u++)
-      rows.push(floors.flatMap(f => { const no = String(f * 100 + u); return [no + '호', state.values[no] ?? '']; }));
+    for (let u = 1; u <= V.perFloor; u++)
+      rows.push(floors.flatMap(f => { const no = String(f * 100 + u); return [no + '호', V.values[no] ?? '']; }));
     return '﻿' + rows.map(r => r.map(v => `"${String(v).replace(/"/g, '""')}"`).join(',')).join('\r\n');
   }
-  const fileName = () => `수도검침_${state.villa || '빌라'}_${state.month}.csv`;
+  const fileName = () => `수도검침_${V.villa || '빌라'}_${V.month}.csv`;
   $('exportBtn').onclick = () => {
     const a = document.createElement('a');
     a.href = URL.createObjectURL(new Blob([toCSV()], { type: 'text/csv;charset=utf-8' }));
     a.download = fileName(); a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 1000);
   };
+  // ---------- 카카오톡 보내기 ----------
+  function villaText(v) {
+    const lines = [`🏠 ${v.villa}  (${v.month} 수도검침)`], missing = [];
+    for (let f = v.fFrom; f <= v.fTo; f++) {
+      lines.push('');
+      for (let u = 1; u <= v.perFloor; u++) {
+        const no = String(f * 100 + u), val = v.values[no];
+        lines.push(`${no}호 : ${val ?? '-'}`); if (!val) missing.push(no);
+      }
+    }
+    if (missing.length) lines.push('', `⚠ 미입력 ${missing.length}세대: ${missing.join(', ')}`);
+    return lines.join('\n');
+  }
+  $('kakaoBtn').onclick = async () => {
+    let list = [V];
+    if (state.villas.length > 1 && confirm(`빌라 ${state.villas.length}곳을 모두 보낼까요?\n[취소]를 누르면 "${V.villa}"만 보냅니다.`)) list = state.villas;
+    const text = list.map(villaText).join('\n\n━━━━━━━━━━\n\n');
+    // 공유창에서 '카카오톡'을 고르면 대화방으로 전송됩니다
+    if (navigator.share) { try { await navigator.share({ text }); } catch (e) {} return; }
+    try { await navigator.clipboard.writeText(text); } catch (e) {}
+    alert('검침 내용을 복사했습니다.\n카카오톡 대화방에 붙여넣기 하세요.');
+    location.href = 'kakaotalk://launch';
+  };
+
   $('shareBtn').onclick = async () => {
     const file = new File([toCSV()], fileName(), { type: 'text/csv' });
-    const text = `${state.villa} ${state.month} 수도검침\n` + units().map(n => `${n}호: ${state.values[n] ?? '-'}`).join('\n');
+    const text = `${V.villa} ${V.month} 수도검침\n` + units().map(n => `${n}호: ${V.values[n] ?? '-'}`).join('\n');
     try {
       if (navigator.canShare && navigator.canShare({ files: [file] })) await navigator.share({ files: [file], title: fileName() });
       else if (navigator.share) await navigator.share({ text });
