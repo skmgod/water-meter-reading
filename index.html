@@ -1,0 +1,423 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#1565c0">
+<title>수도검침표</title>
+<style>
+  :root {
+    --bg: #f4f6f9; --card: #fff; --line: #d0d7e2; --text: #1d2433; --muted: #6b7486;
+    --primary: #1565c0; --primary-weak: #e3efff; --ok: #2e7d32; --ok-weak: #e8f5e9; --warn: #f9a825; --danger: #c62828;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #11151c; --card: #1b212b; --line: #333c4b; --text: #e8ecf3; --muted: #9aa3b5;
+      --primary: #64a8ff; --primary-weak: #1d2f4a; --ok: #66bb6a; --ok-weak: #1e3322;
+    }
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { margin: 0; background: var(--bg); color: var(--text);
+    font-family: -apple-system, "Apple SD Gothic Neo", "Malgun Gothic", "Noto Sans KR", sans-serif; }
+  body { padding: 0 0 110px; }
+  header { position: sticky; top: 0; z-index: 10; background: var(--primary); color: #fff;
+    padding: 10px 16px; padding-top: max(10px, env(safe-area-inset-top)); display: flex; align-items: center; gap: 8px; }
+  header h1 { font-size: 18px; margin: 0; flex: 1; }
+  .icon-btn { border: 0; border-radius: 10px; background: rgba(255,255,255,.18); color: #fff;
+    font-size: 20px; width: 44px; height: 44px; cursor: pointer; }
+  .icon-btn.on { background: #ffd54f; color: #333; box-shadow: 0 0 16px #ffd54f; }
+  main { padding: 12px 16px; max-width: 900px; margin: 0 auto; }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 12px; margin-bottom: 12px; }
+  .row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+  .row label { font-size: 13px; color: var(--muted); }
+  input[type=text], input[type=month], input[type=number], input[inputmode] {
+    font-size: 16px; padding: 8px 10px; border: 1px solid var(--line); border-radius: 8px;
+    background: var(--card); color: var(--text); min-width: 0; }
+  #villa { flex: 1; font-weight: 700; }
+  .grid { display: grid; gap: 8px; }
+  .col h3 { margin: 0 0 6px; font-size: 14px; color: var(--muted); text-align: center; }
+  .cell { display: flex; align-items: center; gap: 6px; padding: 4px; border-radius: 8px; border: 2px solid transparent; }
+  .cell.sel { border-color: var(--primary); background: var(--primary-weak); }
+  .cell.flash { animation: flash 1s; }
+  @keyframes flash { 0% { background: #c8e6c9; } 100% { background: transparent; } }
+  .cell span { font-size: 13px; width: 38px; flex: none; font-weight: 600; }
+  .cell input { width: 100%; text-align: right; padding: 6px; }
+  .cell input.filled { background: var(--ok-weak); border-color: var(--ok); }
+  .bottom { position: fixed; left: 0; right: 0; bottom: 0; z-index: 10; background: var(--card);
+    border-top: 1px solid var(--line); padding: 10px 16px; padding-bottom: max(10px, env(safe-area-inset-bottom)); }
+  .bottom .row { justify-content: center; max-width: 900px; margin: 0 auto; flex-wrap: nowrap; }
+  .btn { border: 0; border-radius: 12px; padding: 12px 14px; font-size: 15px; font-weight: 700; cursor: pointer;
+    background: var(--primary-weak); color: var(--primary); flex: 1; white-space: nowrap; }
+  .btn.primary { background: var(--primary); color: #fff; }
+  .btn.rec { background: var(--danger); color: #fff; animation: pulse 1.2s infinite; }
+  @keyframes pulse { 50% { opacity: .7; } }
+  .btn.small { flex: none; padding: 8px 12px; font-size: 13px; }
+  #status { font-size: 14px; min-height: 20px; text-align: center; color: var(--muted); margin-bottom: 6px; word-break: keep-all; }
+  #status b { color: var(--text); }
+  /* 카메라 */
+  #cam { position: fixed; inset: 0; background: #000; z-index: 50; display: none; flex-direction: column; }
+  #cam.open { display: flex; }
+  #cam .view { position: relative; flex: 1; overflow: hidden; }
+  #cam video, #cam canvas { width: 100%; height: 100%; object-fit: cover; }
+  #cam canvas { position: absolute; inset: 0; display: none; }
+  #cam .guide { position: absolute; left: 10%; right: 10%; top: 38%; height: 18%; border: 3px dashed #ffd54f; border-radius: 10px; pointer-events: none; }
+  #cam .top, #cam .ctrl { display: flex; gap: 8px; padding: 12px 16px; align-items: center; }
+  #cam .top { position: absolute; top: 0; left: 0; right: 0; padding-top: max(12px, env(safe-area-inset-top));
+    background: linear-gradient(#000a, transparent); color: #fff; z-index: 2; }
+  #cam .top .target { flex: 1; font-size: 20px; font-weight: 800; }
+  #cam .ctrl { background: #111; padding-bottom: max(12px, env(safe-area-inset-bottom)); }
+  #camMsg { color: #fff; text-align: center; font-size: 16px; padding: 6px 16px; background: #111; min-height: 30px; }
+  .hint { font-size: 12px; color: var(--muted); line-height: 1.6; }
+  details summary { cursor: pointer; font-weight: 700; font-size: 14px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>💧 수도검침표</h1>
+  <button class="icon-btn" id="torchBtn" title="손전등">🔦</button>
+</header>
+
+<main>
+  <div class="card">
+    <div class="row">
+      <input type="text" id="villa" placeholder="빌라명 입력">
+      <input type="month" id="month">
+    </div>
+  </div>
+
+  <div class="card"><div class="grid" id="grid"></div></div>
+
+  <div class="card">
+    <div class="row">
+      <button class="btn small" id="exportBtn">📥 엑셀(CSV) 저장</button>
+      <button class="btn small" id="shareBtn">📤 공유</button>
+      <button class="btn small" id="clearBtn">🗑 값 지우기</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <details>
+      <summary>⚙️ 호수 설정</summary>
+      <div class="row" style="margin-top:10px">
+        <label>시작층 <input type="number" id="fFrom" min="1" max="99" style="width:60px"></label>
+        <label>끝층 <input type="number" id="fTo" min="1" max="99" style="width:60px"></label>
+        <label>층당 세대 <input type="number" id="perFloor" min="1" max="20" style="width:60px"></label>
+        <button class="btn small primary" id="applyLayout">적용</button>
+      </div>
+      <label class="row" style="margin-top:10px"><input type="checkbox" id="ttsOn" checked> 입력하면 음성으로 확인해주기</label>
+    </details>
+  </div>
+
+  <div class="card hint">
+    <b>사용법</b><br>
+    🎤 <b>음성</b>: "201호 1234" 처럼 호수와 숫자를 말하세요. 여러 개 연속으로 말해도 됩니다.<br>
+    &nbsp;&nbsp;&nbsp;호수 없이 숫자만 말하면 <b>선택된 칸</b>에 들어가고 다음 칸으로 넘어갑니다.<br>
+    📷 <b>카메라</b>: 계량기를 비추고 손전등을 켠 뒤 숫자를 말하거나, 📸 촬영하면 숫자를 자동으로 읽습니다.<br>
+    🔦 <b>손전등</b>: 오른쪽 위 버튼 (안드로이드 크롬 지원)
+  </div>
+</main>
+
+<div class="bottom">
+  <div id="status">칸을 누르거나 🎤 버튼을 눌러 말하세요</div>
+  <div class="row">
+    <button class="btn primary" id="micBtn">🎤 음성 입력</button>
+    <button class="btn" id="camBtn">📷 카메라</button>
+  </div>
+</div>
+
+<!-- 카메라 화면 -->
+<div id="cam">
+  <div class="view">
+    <video id="video" playsinline muted autoplay></video>
+    <canvas id="snap"></canvas>
+    <div class="guide"></div>
+    <div class="top">
+      <button class="icon-btn" id="camPrev">◀</button>
+      <div class="target" id="camTarget">201호</div>
+      <button class="icon-btn" id="camNext">▶</button>
+      <button class="icon-btn" id="camTorch">🔦</button>
+      <button class="icon-btn" id="camClose">✕</button>
+    </div>
+  </div>
+  <div id="camMsg">노란 칸 안에 계량기 숫자를 맞추세요</div>
+  <div class="ctrl">
+    <button class="btn primary" id="camMic">🎤 말하기</button>
+    <button class="btn" id="camShot">📸 촬영·자동인식</button>
+  </div>
+</div>
+
+<script>
+(() => {
+  const $ = id => document.getElementById(id);
+  const KEY = 'waterMeter.v1';
+
+  // ---------- 저장 ----------
+  let state = load() || {
+    villa: '', month: new Date().toISOString().slice(0, 7),
+    fFrom: 2, fTo: 4, perFloor: 9, values: {}
+  };
+  function load() { try { return JSON.parse(localStorage.getItem(KEY)); } catch (e) { return null; } }
+  function save() { try { localStorage.setItem(KEY, JSON.stringify(state)); } catch (e) {} }
+
+  const units = () => {
+    const list = [];
+    for (let f = state.fFrom; f <= state.fTo; f++)
+      for (let u = 1; u <= state.perFloor; u++) list.push(String(f * 100 + u));
+    return list;
+  };
+  let selected = null;
+
+  // ---------- 표 그리기 ----------
+  function render() {
+    $('villa').value = state.villa; $('month').value = state.month;
+    $('fFrom').value = state.fFrom; $('fTo').value = state.fTo; $('perFloor').value = state.perFloor;
+    const grid = $('grid'); grid.innerHTML = '';
+    const floors = state.fTo - state.fFrom + 1;
+    grid.style.gridTemplateColumns = `repeat(${Math.min(floors, 3)}, minmax(0, 1fr))`;
+    for (let f = state.fFrom; f <= state.fTo; f++) {
+      const col = document.createElement('div'); col.className = 'col';
+      col.innerHTML = `<h3>${f}층</h3>`;
+      for (let u = 1; u <= state.perFloor; u++) {
+        const no = String(f * 100 + u);
+        const cell = document.createElement('div'); cell.className = 'cell'; cell.dataset.no = no;
+        cell.innerHTML = `<span>${no}호</span><input inputmode="decimal" data-no="${no}">`;
+        const inp = cell.querySelector('input');
+        inp.value = state.values[no] ?? '';
+        inp.classList.toggle('filled', !!inp.value);
+        inp.addEventListener('focus', () => select(no));
+        inp.addEventListener('input', () => { setValue(no, inp.value, false); });
+        cell.addEventListener('click', () => select(no));
+        col.appendChild(cell);
+      }
+      grid.appendChild(col);
+    }
+    if (!selected || !units().includes(selected)) selected = firstEmpty() || units()[0];
+    select(selected);
+  }
+  const cellOf = no => document.querySelector(`.cell[data-no="${no}"]`);
+  function select(no) {
+    document.querySelectorAll('.cell.sel').forEach(c => c.classList.remove('sel'));
+    selected = no; const c = cellOf(no); if (c) c.classList.add('sel');
+    $('camTarget').textContent = no + '호' + (state.values[no] ? ` (${state.values[no]})` : '');
+  }
+  function firstEmpty() { return units().find(n => !state.values[n]); }
+  function nextOf(no) { const l = units(); return l[l.indexOf(no) + 1]; }
+  function prevOf(no) { const l = units(); return l[l.indexOf(no) - 1]; }
+
+  function setValue(no, val, fromVoice = true) {
+    val = String(val).trim();
+    if (val) state.values[no] = val; else delete state.values[no];
+    save();
+    const c = cellOf(no); if (!c) return;
+    const inp = c.querySelector('input');
+    if (fromVoice) { inp.value = val; c.classList.remove('flash'); void c.offsetWidth; c.classList.add('flash');
+      c.scrollIntoView({ block: 'nearest', behavior: 'smooth' }); }
+    inp.classList.toggle('filled', !!val);
+    if (no === selected) select(no);
+  }
+
+  ['villa', 'month'].forEach(id => $(id).addEventListener('input', e => { state[id] = e.target.value; save(); }));
+  $('applyLayout').onclick = () => {
+    const a = +$('fFrom').value, b = +$('fTo').value, p = +$('perFloor').value;
+    if (!(a >= 1 && b >= a && p >= 1 && p <= 20)) return alert('층/세대 값을 확인하세요');
+    Object.assign(state, { fFrom: a, fTo: b, perFloor: p }); save(); render();
+  };
+  $('clearBtn').onclick = () => { if (confirm('입력한 검침값을 모두 지울까요?')) { state.values = {}; save(); render(); } };
+
+  // ---------- 엑셀(CSV) ----------
+  function toCSV() {
+    const rows = [[state.villa || '빌라명', state.month]];
+    const floors = []; for (let f = state.fFrom; f <= state.fTo; f++) floors.push(f);
+    rows.push(floors.flatMap(f => [`${f}층 호수`, '검침값']));
+    for (let u = 1; u <= state.perFloor; u++)
+      rows.push(floors.flatMap(f => { const no = String(f * 100 + u); return [no + '호', state.values[no] ?? '']; }));
+    return '﻿' + rows.map(r => r.map(v => `"${String(v).replace(/"/g, '""')}"`).join(',')).join('\r\n');
+  }
+  const fileName = () => `수도검침_${state.villa || '빌라'}_${state.month}.csv`;
+  $('exportBtn').onclick = () => {
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(new Blob([toCSV()], { type: 'text/csv;charset=utf-8' }));
+    a.download = fileName(); a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+  };
+  $('shareBtn').onclick = async () => {
+    const file = new File([toCSV()], fileName(), { type: 'text/csv' });
+    const text = `${state.villa} ${state.month} 수도검침\n` + units().map(n => `${n}호: ${state.values[n] ?? '-'}`).join('\n');
+    try {
+      if (navigator.canShare && navigator.canShare({ files: [file] })) await navigator.share({ files: [file], title: fileName() });
+      else if (navigator.share) await navigator.share({ text });
+      else { await navigator.clipboard.writeText(text); alert('내용을 복사했습니다'); }
+    } catch (e) {}
+  };
+
+  // ---------- 음성 안내 (TTS) ----------
+  $('ttsOn').checked = state.tts !== false;
+  $('ttsOn').onchange = e => { state.tts = e.target.checked; save(); };
+  function speak(t) {
+    if (state.tts === false || !window.speechSynthesis) return;
+    speechSynthesis.cancel();
+    const u = new SpeechSynthesisUtterance(t); u.lang = 'ko-KR'; u.rate = 1.15; speechSynthesis.speak(u);
+  }
+  function status(html) { $('status').innerHTML = html; $('camMsg').innerHTML = html; }
+
+  // ---------- 한국어 숫자 → 아라비아 숫자 ----------
+  const D = { 영: 0, 공: 0, 빵: 0, 일: 1, 이: 2, 삼: 3, 사: 4, 오: 5, 육: 6, 륙: 6, 칠: 7, 팔: 8, 구: 9 };
+  const U = { 십: 10, 백: 100, 천: 1000 };
+  function korToNum(s) {
+    const [ip, dp] = s.split('점');
+    const conv = part => {
+      if (!part) return '';
+      if (!/[십백천만]/.test(part)) return [...part].map(c => D[c] ?? '').join(''); // "이공일" → 201
+      let total = 0, sect = 0, cur = 0;
+      for (const c of part) {
+        if (c in D) cur = D[c];
+        else if (c in U) { sect += (cur || 1) * U[c]; cur = 0; }
+        else if (c === '만') { total += (sect + cur || 1) * 10000; sect = 0; cur = 0; }
+      }
+      return String(total + sect + cur);
+    };
+    const i = conv(ip), d = dp !== undefined ? [...dp].map(c => D[c] ?? '').join('') : '';
+    return d ? `${i || 0}.${d}` : i;
+  }
+  function normalize(t) {
+    t = t.replace(/(\d),(\d{3})/g, '$1$2').replace(/\s*점\s*/g, '점')
+      .replace(/([영공빵일이삼사오육륙칠팔구십백천만점]{2,}|[영공빵일이삼사오육륙칠팔구십백천](?=\s*호))/g, m => korToNum(m) || m)
+      .replace(/(\d)\s*점\s*(\d)/g, '$1.$2');
+    return t;
+  }
+
+  // ---------- 인식 결과 처리 ----------
+  function handleSpeech(raw) {
+    const t = normalize(raw);
+    // 명령어
+    if (/다음|넘겨|패스/.test(t) && !/\d/.test(t)) { const n = nextOf(selected); if (n) select(n); status(`➡ <b>${selected}호</b>`); speak(selected + '호'); return; }
+    if (/이전|뒤로/.test(t) && !/\d/.test(t)) { const p = prevOf(selected); if (p) select(p); status(`⬅ <b>${selected}호</b>`); speak(selected + '호'); return; }
+    if (/지워|삭제/.test(t)) { setValue(selected, ''); status(`🗑 ${selected}호 삭제`); speak(selected + '호 삭제'); return; }
+
+    const done = [];
+    const re = /(\d{3,4})\s*호\s*[은는의에:\-]?\s*(\d+(?:\.\d+)?)/g; let m;
+    while ((m = re.exec(t))) {
+      if (units().includes(m[1])) { setValue(m[1], m[2]); done.push([m[1], m[2]]); }
+    }
+    if (done.length) {
+      const last = done[done.length - 1][0];
+      select(nextOf(last) || last);
+    } else {
+      const onlyUnit = t.match(/(\d{3,4})\s*호/);
+      if (onlyUnit && units().includes(onlyUnit[1])) { select(onlyUnit[1]); status(`👉 <b>${onlyUnit[1]}호</b> 선택. 숫자를 말하세요`); speak(onlyUnit[1] + '호'); return; }
+      const num = t.replace(/\s/g, '').match(/\d+(?:\.\d+)?/);
+      if (num && selected) { const no = selected; setValue(no, num[0]); done.push([no, num[0]]); select(nextOf(no) || no); }
+    }
+    if (done.length) {
+      status('✅ ' + done.map(([n, v]) => `<b>${n}호 ${v}</b>`).join(', ') + ` → 다음: ${selected}호`);
+      speak(done.map(([n, v]) => `${n}호 ${v}`).join(', '));
+    } else status(`❓ 인식: "${raw}" — 다시 말해주세요`);
+  }
+
+  // ---------- 음성 인식 ----------
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  let rec = null, listening = false;
+  function setMicUI() {
+    [$('micBtn'), $('camMic')].forEach(b => { b.classList.toggle('rec', listening); b.textContent = listening ? '⏹ 듣는 중… (중지)' : '🎤 ' + (b.id === 'micBtn' ? '음성 입력' : '말하기'); });
+  }
+  function startListen() {
+    if (!SR) return alert('이 브라우저는 음성 인식을 지원하지 않습니다.\n안드로이드 크롬 또는 아이폰 사파리를 사용하세요.');
+    if (speechSynthesis) speechSynthesis.cancel();
+    rec = new SR(); rec.lang = 'ko-KR'; rec.continuous = true; rec.interimResults = true;
+    rec.onresult = e => {
+      for (let i = e.resultIndex; i < e.results.length; i++) {
+        const r = e.results[i];
+        if (r.isFinal) handleSpeech(r[0].transcript);
+        else status(`🎙 ${r[0].transcript}`);
+      }
+    };
+    rec.onerror = e => { if (e.error === 'not-allowed') { listening = false; setMicUI(); alert('마이크 권한을 허용해주세요'); } };
+    rec.onend = () => { if (listening) { try { rec.start(); } catch (e) {} } }; // 끊기면 자동 재시작
+    listening = true; setMicUI();
+    try { rec.start(); } catch (e) {}
+    status(`🎙 듣는 중… <b>${selected}호</b> 부터`);
+  }
+  function stopListen() { listening = false; setMicUI(); try { rec && rec.stop(); } catch (e) {} status('음성 입력 중지'); }
+  const toggleListen = () => listening ? stopListen() : startListen();
+  $('micBtn').onclick = toggleListen; $('camMic').onclick = toggleListen;
+
+  // ---------- 카메라 & 손전등 ----------
+  let stream = null, track = null, torchOn = false;
+  async function openStream() {
+    if (stream) return true;
+    try {
+      stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: { ideal: 'environment' }, width: { ideal: 1920 }, height: { ideal: 1080 } }, audio: false });
+      track = stream.getVideoTracks()[0]; $('video').srcObject = stream;
+      return true;
+    } catch (e) { alert('카메라를 열 수 없습니다: ' + e.message + '\n(https 주소에서 접속해야 합니다)'); return false; }
+  }
+  function closeStream() { if (stream) stream.getTracks().forEach(t => t.stop()); stream = track = null; torchOn = false; torchUI(); }
+  function torchUI() { $('torchBtn').classList.toggle('on', torchOn); $('camTorch').classList.toggle('on', torchOn); }
+  async function setTorch(on) {
+    if (on && !(await openStream())) return;
+    try {
+      const caps = track.getCapabilities ? track.getCapabilities() : {};
+      if (!caps.torch) { if (on) alert('이 기기/브라우저는 손전등 제어를 지원하지 않습니다.\n(아이폰은 제어센터 손전등을 사용하세요)'); return; }
+      await track.applyConstraints({ advanced: [{ torch: on }] }); torchOn = on;
+    } catch (e) { alert('손전등 오류: ' + e.message); }
+    torchUI();
+    if (!on && !$('cam').classList.contains('open')) closeStream();
+  }
+  $('torchBtn').onclick = () => setTorch(!torchOn);
+  $('camTorch').onclick = () => setTorch(!torchOn);
+
+  $('camBtn').onclick = async () => {
+    if (!(await openStream())) return;
+    $('cam').classList.add('open'); $('snap').style.display = 'none'; select(selected);
+    status(`<b>${selected}호</b> 계량기를 비추고 말하거나 촬영하세요`);
+  };
+  $('camClose').onclick = () => { $('cam').classList.remove('open'); if (!torchOn) closeStream(); };
+  $('camNext').onclick = () => { const n = nextOf(selected); if (n) select(n); };
+  $('camPrev').onclick = () => { const p = prevOf(selected); if (p) select(p); };
+
+  // ---------- 사진 자동 인식 (OCR) ----------
+  let tessReady = null;
+  function loadTess() {
+    return tessReady ||= new Promise((ok, no) => {
+      const s = document.createElement('script');
+      s.src = 'https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js';
+      s.onload = () => Tesseract.createWorker('eng').then(async w => {
+        await w.setParameters({ tessedit_char_whitelist: '0123456789.' }); ok(w);
+      }, no);
+      s.onerror = () => { tessReady = null; no(new Error('인식 엔진을 불러오지 못했습니다 (인터넷 확인)')); };
+      document.head.appendChild(s);
+    });
+  }
+  $('camShot').onclick = async () => {
+    const v = $('video'), c = $('snap');
+    if (!v.videoWidth) return;
+    // 노란 가이드 영역만 잘라서 인식
+    const W = v.videoWidth, H = v.videoHeight;
+    const vw = v.clientWidth, vh = v.clientHeight, scale = Math.max(vw / W, vh / H);
+    const ox = (W * scale - vw) / 2, oy = (H * scale - vh) / 2;
+    const g = document.querySelector('#cam .guide').getBoundingClientRect(), vr = v.getBoundingClientRect();
+    const sx = (g.left - vr.left + ox) / scale, sy = (g.top - vr.top + oy) / scale, sw = g.width / scale, sh = g.height / scale;
+    c.width = W; c.height = H; c.getContext('2d').drawImage(v, 0, 0); c.style.display = 'block';
+    const crop = document.createElement('canvas'); crop.width = sw * 2; crop.height = sh * 2;
+    const cx = crop.getContext('2d'); cx.filter = 'grayscale(1) contrast(1.8)';
+    cx.drawImage(v, sx, sy, sw, sh, 0, 0, crop.width, crop.height);
+    status('🔍 숫자 읽는 중…');
+    try {
+      const w = await loadTess();
+      const { data } = await w.recognize(crop);
+      const nums = (data.text.match(/\d+(?:\.\d+)?/g) || []).sort((a, b) => b.length - a.length);
+      c.style.display = 'none';
+      if (!nums.length) { status('❌ 숫자를 찾지 못했습니다. 가까이·밝게 다시 촬영하거나 말로 입력하세요'); speak('다시 찍어주세요'); return; }
+      const no = selected, val = nums[0];
+      if (confirm(`${no}호 = ${val}\n맞으면 [확인], 틀리면 [취소] 후 말로 입력하세요`)) {
+        setValue(no, val); select(nextOf(no) || no);
+        status(`✅ <b>${no}호 ${val}</b> → 다음: ${selected}호`); speak(`${no}호 ${val}`);
+      } else status(`<b>${no}호</b> 숫자를 말해주세요`);
+    } catch (e) { c.style.display = 'none'; status('❌ ' + e.message); }
+  };
+
+  render();
+})();
+</script>
+</body>
