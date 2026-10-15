@@ -1,5 +1,5 @@
-// 빠른 실행: 저장된 앱을 바로 보여주고, 인터넷이 되면 뒤에서 새 버전으로 갱신 (다음 실행부터 적용)
-const CACHE = 'water-meter-v2';
+// 오프라인에서도 앱이 열리도록 캐시 (항상 최신 버전 우선)
+const CACHE = 'water-meter-v1';
 const FILES = ['./', './index.html', './manifest.json', './icon-192.png', './icon-512.png'];
 
 self.addEventListener('install', e => {
@@ -12,22 +12,9 @@ self.addEventListener('activate', e => {
 });
 self.addEventListener('fetch', e => {
   if (e.request.method !== 'GET' || new URL(e.request.url).origin !== location.origin) return;
-  e.respondWith(caches.open(CACHE).then(async cache => {
-    const cached = await cache.match(e.request, { ignoreSearch: true });
-    const fresh = fetch(e.request)
-      .then(async res => {
-        if (res.ok) {
-          // 화면(index.html)이 바뀌었으면 앱에 "새 버전" 알림
-          if (cached && e.request.mode === 'navigate') {
-            const [a, b] = await Promise.all([cached.clone().text(), res.clone().text()]);
-            if (a !== b) self.clients.matchAll().then(cs => cs.forEach(c => c.postMessage('updated')));
-          }
-          await cache.put(e.request, res.clone());
-        }
-        return res;
-      })
-      .catch(() => cached);
-    if (cached) { e.waitUntil(fresh); return cached; }
-    return fresh;
-  }));
+  e.respondWith(
+    fetch(e.request)
+      .then(res => { const copy = res.clone(); caches.open(CACHE).then(c => c.put(e.request, copy)); return res; })
+      .catch(() => caches.match(e.request, { ignoreSearch: true }))
+  );
 });
