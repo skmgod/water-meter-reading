@@ -217,6 +217,14 @@
           <label>층당 세대 <input type="number" id="perFloor" min="1" max="20" style="width:60px"></label>
           <button class="btn small primary" id="applyLayout">적용</button>
         </div>
+        <div style="margin-top:14px; font-weight:700; font-size:14px">📅 검침월 옮기기</div>
+        <div class="row" style="margin-top:6px">
+          <input type="month" id="mvFrom" style="width:150px"> →
+          <input type="month" id="mvTo" style="width:150px">
+          <button class="btn small primary" id="mvBtn">옮기기</button>
+        </div>
+        <label class="row" style="margin-top:6px"><input type="checkbox" id="mvAll" checked> 모든 빌라 함께 옮기기</label>
+        <div class="hint">다른 달로 잘못 입력한 지침을 원래 달로 옮깁니다.</div>
         <label class="row" style="margin-top:10px"><input type="checkbox" id="ttsOn" checked> 입력하면 음성으로 확인해주기</label>
         <label class="row" style="margin-top:6px"><input type="checkbox" id="autoListen"> 🎤 말한 뒤 자동으로 계속 듣기 (손 안 쓰고 연속 입력)</label>
       </details>
@@ -468,6 +476,25 @@
   $('month').addEventListener('change', e => { if (!e.target.value) return; state.month = e.target.value; save(); selected = null; render(); });
   $('entryCur').onclick = () => { state.entryPrev = false; selected = null; render(); };
   $('entryPrev').onclick = () => { state.entryPrev = true; selected = null; render(); };
+  // ---------- 검침월 옮기기 (예: 9월로 잘못 들어간 값 → 10월) ----------
+  $('mvFrom').value = addMonth(state.month, -1); $('mvTo').value = state.month;
+  $('mvBtn').onclick = () => {
+    const from = $('mvFrom').value, to = $('mvTo').value;
+    if (!from || !to || from === to) return alert('옮길 달과 받을 달을 다르게 골라주세요');
+    const list = $('mvAll').checked ? state.villas : [V];
+    const plan = list.map(v => ({ v, src: RD(v, from), dst: RD(v, to) })).filter(x => Object.keys(x.src).length);
+    if (!plan.length) return alert(`${mLong(from)}에 옮길 값이 없습니다`);
+    const lines = plan.map(({ v, src, dst }) => {
+      const clash = Object.keys(src).filter(no => dst[no] != null && dst[no] !== src[no]).length;
+      return `· ${v.villa}: ${Object.keys(src).length}세대` + (Object.keys(dst).length ? ` (${mLabel(to)}에 이미 ${Object.keys(dst).length}세대${clash ? `, ${clash}세대는 덮어씀` : ''})` : '');
+    });
+    if (!confirm(`${mLong(from)} 지침을 ${mLong(to)}로 옮길까요?\n\n${lines.join('\n')}\n\n옮긴 뒤 ${mLabel(from)}에는 값이 남지 않습니다.`)) return;
+    plan.forEach(({ v, src }) => { v.readings[to] = { ...RD(v, to), ...src }; delete v.readings[from]; });
+    state.month = to; save(); selected = null; render();
+    status(`✅ ${mLabel(from)} → ${mLabel(to)} 옮기기 완료 (${plan.length}개 빌라)`);
+    alert(`옮기기 완료: ${plan.map(x => x.v.villa).join(', ')}`);
+  };
+
   $('applyLayout').onclick = () => {
     const a = +$('fFrom').value, b = +$('fTo').value, p = +$('perFloor').value;
     if (!(a >= 1 && b >= a && p >= 1 && p <= 20)) return alert('층/세대 값을 확인하세요');
