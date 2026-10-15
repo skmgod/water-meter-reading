@@ -31,6 +31,8 @@
     padding: 8px 16px 0; padding-top: max(8px, env(safe-area-inset-top)); }
   header .bar { display: flex; align-items: center; gap: 8px; }
   header h1 { font-size: 18px; margin: 0; flex: 1; }
+  .netbar { display: none; margin: 6px -16px 0; padding: 4px 16px; background: #b26a00; color: #fff; font-size: 12px; text-align: center; }
+  body.offline .netbar { display: block; }
   .tabs { display: flex; gap: 4px; margin-top: 6px; }
   .tabs button { flex: 1; border: 0; background: none; color: rgba(255,255,255,.75); font-size: 15px; font-weight: 700;
     padding: 10px 0; border-bottom: 3px solid transparent; cursor: pointer; }
@@ -160,6 +162,7 @@
     <h1>💧 수도검침표</h1>
     <button class="icon-btn" id="torchBtn" title="손전등">🔦</button>
   </div>
+  <div class="netbar">📴 인터넷 끊김 — 입력값은 폰에 저장됩니다. 연결되면 음성이 자동으로 다시 켜집니다</div>
   <nav class="tabs">
     <button id="tabInput" class="on">📝 검침 입력</button>
     <button id="tabAna">📊 사용량 분석</button>
@@ -210,21 +213,27 @@
 
     <div class="card">
       <details>
-        <summary>⚙️ 호수 설정</summary>
+        <summary>⚙️ 설정 · 백업</summary>
         <div class="row" style="margin-top:10px">
           <label>시작층 <input type="number" id="fFrom" min="1" max="99" style="width:60px"></label>
           <label>끝층 <input type="number" id="fTo" min="1" max="99" style="width:60px"></label>
           <label>층당 세대 <input type="number" id="perFloor" min="1" max="20" style="width:60px"></label>
           <button class="btn small primary" id="applyLayout">적용</button>
         </div>
+        <div class="row" style="margin-top:12px">
+          <button class="btn small" id="backupBtn">💾 백업 파일 저장</button>
+          <button class="btn small" id="restoreBtn">📂 백업 불러오기</button>
+          <input type="file" id="restoreFile" accept=".json,application/json" hidden>
+        </div>
+        <div class="hint">폰을 바꾸거나 앱을 지울 때를 대비해 가끔 백업 파일을 카톡 '나와의 채팅'이나 구글 드라이브에 보관하세요.</div>
         <label class="row" style="margin-top:10px"><input type="checkbox" id="ttsOn" checked> 입력하면 음성으로 확인해주기</label>
-        <label class="row" style="margin-top:6px"><input type="checkbox" id="autoListen"> 🎤 말한 뒤 자동으로 계속 듣기 (손 안 쓰고 연속 입력)</label>
+        <label class="row" style="margin-top:6px"><input type="checkbox" id="autoListen"> 🎤 [중지] 누를 때까지 계속 듣기 (끄면 한 번만 듣기)</label>
       </details>
     </div>
 
     <div class="card hint">
       <b>사용법</b><br>
-      🎤 <b>음성</b>: 버튼을 누르고 "201호 1234" 처럼 한 번 말하세요. 말이 끝나면 자동으로 입력됩니다.<br>
+      🎤 <b>음성</b>: 버튼을 한 번 누르면 <b>[중지]를 누를 때까지 계속</b> 듣습니다. "201호 1234", "202호 980" 처럼 이어서 말하세요.<br>
       &nbsp;&nbsp;&nbsp;호수 없이 숫자만 말하면 <b>선택된 칸</b>에 들어가고 다음 칸으로 넘어갑니다.<br>
       ⌨️ <b>키보드 음성</b>: 🎤 인식이 안 좋으면 아래 입력창을 누르고 <b>키보드의 🎤(구글 음성)</b>로 말하세요.<br>
       📅 <b>전월지침</b>: 처음 쓸 때는 위에서 <b>[전월지침]</b>을 눌러 지난달 값을 넣으면 사용량이 계산됩니다. 다음 달부터는 자동입니다.<br>
@@ -317,7 +326,15 @@
   const newVilla = (name, from) => ({ villa: name,
     fFrom: from ? from.fFrom : 2, fTo: from ? from.fTo : 4, perFloor: from ? from.perFloor : 9, readings: {} });
   function load(k) { try { return JSON.parse(localStorage.getItem(k)); } catch (e) { return null; } }
-  function save() { try { localStorage.setItem(KEY, JSON.stringify(state)); } catch (e) {} }
+  let saveTimer = null;
+  function flushSave() {
+    clearTimeout(saveTimer); saveTimer = null;
+    try { localStorage.setItem(KEY, JSON.stringify(state)); } catch (e) { alert('저장 공간이 부족합니다. 설정에서 백업 파일을 저장해주세요.'); }
+  }
+  function save() { clearTimeout(saveTimer); saveTimer = setTimeout(flushSave, 300); }
+  addEventListener('pagehide', flushSave);
+  // 휴대폰이 저장 공간을 정리할 때 이 앱 데이터는 지우지 않도록 요청
+  if (navigator.storage && navigator.storage.persist) navigator.storage.persist().catch(() => {});
   let state = load(KEY);
   if (!state || !Array.isArray(state.villas) || !state.villas.length) {
     const old = load('waterMeter.v1');
@@ -530,6 +547,28 @@
     } catch (e) {}
   };
 
+  // ---------- 백업 / 복원 ----------
+  $('backupBtn').onclick = async () => {
+    flushSave();
+    const d = new Date(), name = `수도검침_백업_${ym(d)}-${String(d.getDate()).padStart(2, '0')}.json`;
+    const file = new File([JSON.stringify({ app: 'waterMeter', saved: d.toISOString(), state })], name, { type: 'application/json' });
+    try {
+      if (navigator.canShare && navigator.canShare({ files: [file] })) { await navigator.share({ files: [file], title: name }); return; }
+    } catch (e) { if (e.name === 'AbortError') return; }
+    const a = document.createElement('a'); a.href = URL.createObjectURL(file); a.download = name; a.click();
+    setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+  };
+  $('restoreBtn').onclick = () => $('restoreFile').click();
+  $('restoreFile').onchange = async e => {
+    const f = e.target.files[0]; e.target.value = ''; if (!f) return;
+    try {
+      const data = JSON.parse(await f.text()), st = data.state || data;
+      if (!Array.isArray(st.villas) || !st.villas.length) throw new Error('수도검침 백업 파일이 아닙니다');
+      if (!confirm(`백업(${st.villas.map(v => v.villa).join(', ')})으로 바꿀까요?\n지금 폰에 있는 값은 백업 내용으로 덮어씁니다.`)) return;
+      state = st; flushSave(); location.reload();
+    } catch (err) { alert('불러오기 실패: ' + err.message); }
+  };
+
   // =====================================================================
   // 사용량 분석
   // =====================================================================
@@ -716,6 +755,8 @@
     speechSynthesis.cancel();
     const u = new SpeechSynthesisUtterance(t); u.lang = 'ko-KR'; u.rate = 1.15; speechSynthesis.speak(u);
   }
+  function netUI() { document.body.classList.toggle('offline', !navigator.onLine); }
+  netUI();
   function status(html) { $('status').innerHTML = html; $('camMsg').innerHTML = html; }
 
   // ---------- 한국어 숫자 → 아라비아 숫자 ----------
@@ -795,34 +836,53 @@
   }
   const handleText = raw => apply(parse(raw), raw);
 
-  // ---------- 음성 인식 (한 번 누르고 한 번 말하기) ----------
+  // ---------- 음성 인식: 누르면 [중지]할 때까지 계속 듣기 ----------
+  // 안드로이드는 '한 문장씩 듣기'가 가장 정확해서, 한 문장 끝날 때마다 자동으로 다시 시작합니다.
   const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-  let rec = null, listening = false, restartTimer = null;
+  let rec = null, listening = false, restartTimer = null, lastHeard = 0, errCount = 0, wakeLock = null;
+  const IDLE_STOP = 5 * 60 * 1000; // 5분 동안 말이 없으면 자동 중지 (배터리 보호)
+  if (state.autoListen === undefined) state.autoListen = true;
   $('autoListen').checked = !!state.autoListen;
   $('autoListen').onchange = e => { state.autoListen = e.target.checked; save(); };
   function setMicUI() {
     [$('micBtn'), $('camMic')].forEach(b => { b.classList.toggle('rec', listening); b.textContent = listening ? '⏹ 듣는 중… (중지)' : '🎤 ' + (b.id === 'micBtn' ? '음성 입력' : '말하기'); });
   }
+  async function keepAwake(on) { // 듣는 동안 화면 꺼짐 방지
+    try {
+      if (on && !wakeLock && navigator.wakeLock) { wakeLock = await navigator.wakeLock.request('screen'); wakeLock.onrelease = () => { wakeLock = null; }; }
+      if (!on && wakeLock) { await wakeLock.release(); wakeLock = null; }
+    } catch (e) {}
+  }
+  function scheduleRestart(delay) {
+    clearTimeout(restartTimer);
+    const again = () => {
+      if (!listening || document.hidden) return;   // 화면이 다시 켜지면 visibilitychange에서 이어감
+      if (!navigator.onLine) { status('📴 인터넷 연결 대기 중… 연결되면 자동으로 다시 듣습니다'); return; }
+      if (window.speechSynthesis && speechSynthesis.speaking) { restartTimer = setTimeout(again, 150); return; }
+      if (Date.now() - lastHeard > IDLE_STOP) { stopListen(); status('⏸ 5분 동안 말이 없어 음성 입력을 멈췄습니다'); return; }
+      try { listenOnce(); } catch (e) { restartTimer = setTimeout(again, 500); }
+    };
+    restartTimer = setTimeout(again, delay);
+  }
   function listenOnce() {
     rec = new SR(); rec.lang = 'ko-KR'; rec.continuous = false; rec.interimResults = true; rec.maxAlternatives = 5;
     rec.onresult = e => {
       const r = e.results[e.results.length - 1];
+      lastHeard = Date.now(); errCount = 0;
       if (!r.isFinal) { status(`🎙 ${esc(r[0].transcript)}`); return; }
       const alts = [...r].map(a => a.transcript);
       apply(best(alts), alts[0]);
     };
     rec.onerror = e => {
-      if (e.error === 'not-allowed' || e.error === 'service-not-allowed') { listening = false; setMicUI(); alert('마이크 권한을 허용해주세요'); }
-      else if (e.error === 'no-speech') status('🔇 소리가 안 들렸어요. 폰을 입 가까이 대고 말하세요');
+      if (e.error === 'not-allowed' || e.error === 'service-not-allowed') {
+        listening = false; setMicUI(); keepAwake(false); alert('마이크 권한을 허용해주세요'); return; }
+      if (e.error === 'network') { errCount++; status('📶 인터넷이 약합니다. 연결되면 자동으로 다시 듣습니다'); }
+      else if (e.error === 'audio-capture') { errCount++; status('🎤 마이크를 다른 앱이 쓰는 중입니다. 잠시 후 다시 시도합니다'); }
     };
     rec.onend = () => {
       if (!listening) return;
-      if (!state.autoListen) { listening = false; setMicUI(); return; }
-      // 확인 음성이 끝난 뒤 다시 듣기 (자기 목소리 인식 방지)
-      const again = () => { if (!listening) return;
-        if (window.speechSynthesis && speechSynthesis.speaking) { restartTimer = setTimeout(again, 200); return; }
-        try { listenOnce(); } catch (e) {} };
-      restartTimer = setTimeout(again, 300);
+      if (!state.autoListen) { listening = false; setMicUI(); keepAwake(false); return; }
+      scheduleRestart(errCount ? Math.min(5000, 500 * errCount) : 250); // 오류가 반복되면 조금씩 늦게 재시도
     };
     rec.start();
     status(`🎙 말하세요… <b>${selected}호</b>${state.entryPrev ? ' [전월지침]' : ''}`);
@@ -830,10 +890,17 @@
   function startListen() {
     if (!SR) return alert('이 브라우저는 음성 인식을 지원하지 않습니다.\n아래 ⌨️ 입력창을 누르고 키보드의 🎤 버튼으로 말하세요.');
     if (window.speechSynthesis) speechSynthesis.cancel();
-    listening = true; setMicUI();
-    try { listenOnce(); } catch (e) { listening = false; setMicUI(); }
+    listening = true; lastHeard = Date.now(); errCount = 0; setMicUI(); keepAwake(true);
+    try { listenOnce(); } catch (e) { scheduleRestart(300); }
   }
-  function stopListen() { listening = false; clearTimeout(restartTimer); setMicUI(); try { rec && rec.abort(); } catch (e) {} status('음성 입력 중지'); }
+  function stopListen() { listening = false; clearTimeout(restartTimer); setMicUI(); keepAwake(false); try { rec && rec.abort(); } catch (e) {} status('음성 입력 중지'); }
+  // 화면이 다시 켜지거나 인터넷이 다시 연결되면 듣기를 자동으로 이어갑니다
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden) { flushSave(); return; }
+    if (listening) { keepAwake(true); lastHeard = Date.now(); scheduleRestart(300); }
+  });
+  addEventListener('online', () => { netUI(); if (listening) { errCount = 0; status('📶 다시 연결됨 — 계속 말하세요'); scheduleRestart(200); } });
+  addEventListener('offline', netUI);
   const toggleListen = () => listening ? stopListen() : startListen();
   $('micBtn').onclick = toggleListen; $('camMic').onclick = toggleListen;
 
@@ -962,7 +1029,18 @@
 
   render();
   setTab(state.tab);
-  if ('serviceWorker' in navigator && location.protocol === 'https:') navigator.serviceWorker.register('sw.js').catch(() => {});
+  if ('serviceWorker' in navigator && location.protocol === 'https:') {
+    navigator.serviceWorker.register('sw.js').catch(() => {});
+    const started = Date.now();
+    navigator.serviceWorker.addEventListener('message', e => {
+      if (e.data !== 'updated') return;
+      flushSave();
+      // 막 켠 직후면 바로 새 버전으로, 작업 중이면 안내만 (입력 방해 안 함)
+      if (Date.now() - started < 15000 && !listening) location.reload();
+      else status('🔄 새 버전이 준비됐습니다. <u id="reloadNow">여기를 누르면 적용</u>');
+    });
+    document.addEventListener('click', e => { if (e.target.id === 'reloadNow') { flushSave(); location.reload(); } });
+  }
 })();
 </script>
 </body>
