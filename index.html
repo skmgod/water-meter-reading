@@ -225,6 +225,13 @@
         </div>
         <label class="row" style="margin-top:6px"><input type="checkbox" id="mvAll" checked> 모든 빌라 함께 옮기기</label>
         <div class="hint">다른 달로 잘못 입력한 지침을 원래 달로 옮깁니다.</div>
+        <div style="margin-top:14px; font-weight:700; font-size:14px">📂 엑셀(CSV) 불러오기</div>
+        <div class="row" style="margin-top:6px">
+          <input type="month" id="impMonth" style="width:150px"> 에 넣기
+          <button class="btn small primary" id="impBtn">파일 고르기</button>
+          <input type="file" id="impFile" accept=".csv,text/csv,text/comma-separated-values" hidden>
+        </div>
+        <div class="hint">이 앱에서 저장한 CSV의 <b>당월지침</b> 값을 고른 달에 넣습니다. 없는 빌라는 새로 만들고, 호수 칸도 자동으로 맞춥니다.</div>
         <label class="row" style="margin-top:10px"><input type="checkbox" id="ttsOn" checked> 입력하면 음성으로 확인해주기</label>
         <label class="row" style="margin-top:6px"><input type="checkbox" id="autoListen"> 🎤 말한 뒤 자동으로 계속 듣기 (손 안 쓰고 연속 입력)</label>
       </details>
@@ -493,6 +500,64 @@
     state.month = to; save(); selected = null; render();
     status(`✅ ${mLabel(from)} → ${mLabel(to)} 옮기기 완료 (${plan.length}개 빌라)`);
     alert(`옮기기 완료: ${plan.map(x => x.v.villa).join(', ')}`);
+  };
+
+  // ---------- 엑셀(CSV) 불러오기 ----------
+  function parseCSV(text) {
+    const rows = []; let row = [], cell = '', q = false;
+    for (let i = 0; i < text.length; i++) {
+      const c = text[i];
+      if (q) { if (c === '"') { if (text[i + 1] === '"') { cell += '"'; i++; } else q = false; } else cell += c; }
+      else if (c === '"') q = true;
+      else if (c === ',') { row.push(cell); cell = ''; }
+      else if (c === '\n' || c === '\r') { if (c === '\r' && text[i + 1] === '\n') i++; row.push(cell); rows.push(row); row = []; cell = ''; }
+      else cell += c;
+    }
+    if (cell || row.length) { row.push(cell); rows.push(row); }
+    return rows;
+  }
+  function decodeFile(buf) { // 앱에서 저장한 파일은 UTF-8, 엑셀에서 다시 저장한 파일은 EUC-KR일 수 있음
+    try { return new TextDecoder('utf-8', { fatal: true }).decode(buf); } catch (e) { return new TextDecoder('euc-kr').decode(buf); }
+  }
+  $('impMonth').value = state.month;
+  $('impBtn').onclick = () => $('impFile').click();
+  $('impFile').onchange = async e => {
+    const f = e.target.files[0]; e.target.value = ''; if (!f) return;
+    const to = $('impMonth').value; if (!to) return alert('넣을 달을 골라주세요');
+    try {
+      const rows = parseCSV(decodeFile(await f.arrayBuffer()).replace(/^﻿/, '')).filter(r => r.some(c => c.trim()));
+      const h = rows[0].map(c => c.trim());
+      const iName = Math.max(0, h.findIndex(c => c.includes('빌라')));
+      const iNo = h.findIndex(c => c.includes('호수'));
+      const iVal = h.findIndex(c => c.includes('당월'));
+      if (iNo < 0 || iVal < 0) throw new Error('"호수"와 "당월지침" 제목이 있는 CSV가 아닙니다');
+      const data = new Map(); // 빌라 → { units:[], vals:{} }
+      rows.slice(1).forEach(r => {
+        const name = (r[iName] || '').trim(), no = ((r[iNo] || '').match(/\d{3,4}/) || [])[0], val = (r[iVal] || '').trim().replace(/,/g, '');
+        if (!name || !no) return;
+        const d = data.get(name) || { units: [], vals: {} }; data.set(name, d);
+        d.units.push(+no);
+        if (val && !isNaN(Number(val))) d.vals[no] = val;
+      });
+      if (!data.size) throw new Error('읽을 수 있는 줄이 없습니다');
+      let nVals = 0, nNew = 0, nOver = 0;
+      data.forEach((d, name) => {
+        const v = state.villas.find(x => x.villa === name); if (!v) nNew++;
+        Object.entries(d.vals).forEach(([no, val]) => { nVals++; const old = v && RD(v, to)[no]; if (old != null && old !== val) nOver++; });
+      });
+      if (!confirm(`${f.name}\n\n${mLong(to)}에 넣을까요?\n· 빌라 ${data.size}곳 (새로 만들 빌라 ${nNew}곳)\n· 검침값 ${nVals}개` +
+        (nOver ? `\n· 이미 있는 값 중 ${nOver}개는 파일 값으로 바뀝니다` : ''))) return;
+      data.forEach((d, name) => {
+        const floors = d.units.map(n => Math.floor(n / 100)), per = Math.max(...d.units.map(n => n % 100));
+        let v = state.villas.find(x => x.villa === name);
+        if (!v) { v = newVilla(name); v.fFrom = Math.min(...floors); v.fTo = Math.max(...floors); v.perFloor = per; state.villas.push(v); }
+        else { v.fFrom = Math.min(v.fFrom, ...floors); v.fTo = Math.max(v.fTo, ...floors); v.perFloor = Math.max(v.perFloor, per); }
+        if (Object.keys(d.vals).length) v.readings[to] = { ...RD(v, to), ...d.vals };
+      });
+      state.month = to; save(); selected = null; render();
+      status(`✅ ${mLabel(to)}에 ${data.size}개 빌라, 검침값 ${nVals}개 불러옴`);
+      alert(`불러오기 완료!\n${mLong(to)} · 빌라 ${data.size}곳 · 검침값 ${nVals}개\n위쪽 빌라 목록에서 확인하세요.`);
+    } catch (err) { alert('불러오기 실패: ' + err.message); }
   };
 
   $('applyLayout').onclick = () => {
